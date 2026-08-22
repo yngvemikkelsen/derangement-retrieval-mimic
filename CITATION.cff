@@ -1,0 +1,68 @@
+cff-version: 1.2.0
+title: >-
+  Analysis code for: Retrieval performance over clinical free text is
+  heterogeneous with respect to acute physiological derangement
+message: >-
+  If you use this software, please cite both the software and the
+  manuscript it accompanies.
+type: software
+authors:
+  - family-names: Mikkelsen
+    given-names: Yngve
+    orcid: https://orcid.org/0000-0003-1543-3805
+repository-code: https://github.com/REPLACE-ME/REPLACE-ME
+license: MIT
+version: 1.0.0
+date-released: "2026-08-21"
+keywords:
+  - clinical natural language processing
+  - information retrieval
+  - text embeddings
+  - subgroup performance
+  - MIMIC-IV
+abstract: >-
+  Code to reproduce an evaluation of whether known-item retrieval performance
+  over ICU discharge summaries varies with the acute physiological derangement
+  of the patient whose record is being retrieved. Thirteen transformer encoders
+  and a BM25 baseline are evaluated against a single pooled index, with
+  candidate explanations assessed across six groups. Contains no patient data;
+  MIMIC-IV and MIMIC-IV-Note must be obtained from PhysioNet under their own
+  data use agreements.
+references:
+  - type: article
+    title: >-
+      Retrieval performance over clinical free text is heterogeneous with
+      respect to acute physiological derangement: an evaluation of thirteen
+      embedding models on ICU discharge summaries
+    authors:
+      - family-names: Mikkelsen
+        given-names: Yngve
+        orcid: https://orcid.org/0000-0003-1543-3805
+    year: 2026
+    notes: Under review. Replace with the DOI on acceptance.
+  - type: database
+    title: "MIMIC-IV (version 3.1)"
+    authors:
+      - family-names: Johnson
+        given-names: Alistair
+      - family-names: Bulgarelli
+        given-names: Lucas
+      - family-names: Pollard
+        given-names: Tom
+    year: 2024
+    doi: 10.13026/kpb9-mt58
+  - type: database
+    title: "MIMIC-IV-Note: Deidentified free-text clinical notes (version 2.2)"
+    authors:
+      - family-names: Johnson
+        given-names: Alistair
+      - family-names: Pollard
+        given-names: Tom
+      - family-names: Horng
+        given-names: Steven
+      - family-names: Celi
+        given-names: Leo Anthony
+      - family-names: Mark
+        given-names: Roger
+    year: 2023
+    doi: 10.13026/1n74-ne17
