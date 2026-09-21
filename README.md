@@ -1,13 +1,12 @@
-# Retrieval heterogeneity with respect to acute physiological derangement
+# Clinical free-text retrieval across an acute physiological derangement composite
 
-Analysis code for a study of whether known-item retrieval performance over ICU
-discharge summaries varies with the physiological state of the patient whose
-record is being retrieved.
+Analysis code for a stratified evaluation of whether known-item retrieval
+performance over ICU discharge summaries varies with the early physiological
+state of the patient whose record is being retrieved.
 
-**Manuscript:** *Retrieval performance over clinical free text is heterogeneous
-with respect to acute physiological derangement: an evaluation of thirteen
-embedding models on ICU discharge summaries.* Under review. DOI to be added on
-acceptance.
+**Manuscript:** *Clinical Free-Text Retrieval Across an Acute Physiological
+Derangement Composite in Intensive Care Unit Discharge Summaries: Stratified
+Evaluation Study.* Submitted to JMIR AI. DOI to be added on acceptance.
 
 **Author:** Yngve Mikkelsen, MD, MSc, DBA — ORCID
 [0000-0003-1543-3805](https://orcid.org/0000-0003-1543-3805)
@@ -26,34 +25,38 @@ directly. See [`docs/DATA_ACCESS.md`](docs/DATA_ACCESS.md).
 
 Against a single pooled index of 2,956 length-matched discharge summaries, all
 eight contrastively trained dense retrievers retrieved less accurately for
-patients with greater acute physiological derangement — a mean relative decline
-of 37.3% between the extreme quartiles, significant for every model after Holm
-adjustment. BM25 declined by 13.4%: in absolute reciprocal-rank units the dense
-and lexical gradients were indistinguishable, but the dense gradient was
-substantially steeper in relative terms.
+patients with greater early physiological derangement: a mean decline of 37.2%
+between the extreme quartiles (range 29.1% to 43.9%), significant for every
+model after Holm adjustment. BM25 declined by 13.4%. No difference in absolute
+reciprocal-rank slopes between dense and lexical retrieval was detected
+(+0.0016, 95% CI −0.0110 to +0.0141), but dense retrieval declined more in
+proportional terms (−0.074, 95% CI −0.109 to −0.036).
 
-Diagnostics in the scoring geometry located the deterioration in the target
-document's similarity to a passage drawn from itself rather than in increased
-competition from neighbouring documents.
-
-Candidate explanations were assessed in six groups — design, exposure
-definition, patient complexity, documentation process, representation and query
-construction. None eliminated the gradient; joint adjustment for the structured
-covariates attenuated it by 22.0%.
+The scoring geometry located the deterioration mainly in the target document's
+similarity to a passage drawn from itself, not in rising similarity of the
+nearest competing document. Joint adjustment for seven measured covariates
+attenuated the gradient by 21.6%. Its direction persisted across 40 of 40
+alternative query draws, an analysis of all 3,896 usable pairs, and an age-free
+exposure. Under a lab-only organ-dysfunction stratification the slopes were
+directionally similar but less consistently supported, and a matched comparison
+on identical records could not distinguish the two exposures, so which dimension
+of patient state the association tracks remains open.
 
 ## Repository layout
 
 ```
 code/
   stage1_cohort/      cohort construction, query extraction, exposure
-                      characterisation
+                      characterisation, organ-dysfunction strata, provenance
+                      checks
   stage2_retrieval/   encoding and retrieval scoring for the model panel
   stage3_analysis/    the analyses reported in the manuscript
   exploratory/        post-hoc analyses NOT reported in the manuscript,
                       retained for transparency (see the note below)
+  figures/            make_figures.py, which draws the manuscript figures
 docs/                 reproduction instructions, data access, changelog
 results/              run outputs are written here (git-ignored)
-figures/              figures are written here (git-ignored)
+figures/              the four manuscript figures (PNG, 300 dpi)
 ```
 
 ## Reproducing the analysis
@@ -63,9 +66,9 @@ commands, expected runtimes and the checks to make at each stage.
 
 In outline:
 
-1. **Stage 1** builds the cohort, extracts queries, and characterises the
-   exposure against mortality, length of stay and a laboratory partial-SOFA
-   sub-score.
+1. **Stage 1** builds the cohort, extracts queries, characterises the exposure
+   against mortality, length of stay and a laboratory partial-SOFA sub-score,
+   and builds the organ-dysfunction strata used as an alternative exposure.
 2. **Stage 2** encodes documents and queries for thirteen transformer encoders
    plus BM25 and writes the embedding cache. This is the only step needing a
    GPU or Apple Silicon accelerator; it takes a few hours.
@@ -99,8 +102,12 @@ be slow but correct.
   filename with the same identifier. Two runs on different stratifications
   cannot be confused.
 - Random seeds are fixed at 42 throughout.
-- Model checkpoints are pinned by name; see `docs/REPRODUCE.md` for the list and
-  the revisions used.
+- Model checkpoints are identified by their Hugging Face names, listed in
+  `docs/REPRODUCE.md`. Revisions were not pinned, so upstream model updates can
+  cause small differences.
+- `code/stage1_cohort/paper20_provenance_checks.py` recomputes every cohort and
+  exposure count from the raw release files and prints it beside the reported
+  value.
 
 ## Licence
 

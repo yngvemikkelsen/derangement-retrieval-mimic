@@ -37,15 +37,17 @@ reportable and appear in the manuscript and its supplement.
 
 ## The upstream cohort
 
-The analysis begins from an ICU cohort with hourly physiological series and a
-first-24-hour derangement composite, built from MIMIC-IV chartevents. The
-composite is specified in `REPRODUCE.md`. The construction code for that upstream
-cohort is not part of this repository; the composite is fully specified so it can
-be rebuilt.
+The analysis begins from an ICU cohort with hourly physiological series and an
+early-stay derangement composite, built from MIMIC-IV chartevents in a companion
+analysis. Its construction code is not part of this repository. The cohort and
+composite are fully specified in Multimedia Appendix 1 of the manuscript and
+summarised in `REPRODUCE.md`, and
+`code/stage1_cohort/paper20_provenance_checks.py` reproduces the cohort
+attrition from the raw release.
 
 ## Ethics
 
-MIMIC-IV is de-identified and its collection was approved by the institutional
-review boards of the Beth Israel Deaconess Medical Center and the Massachusetts
-Institute of Technology. Secondary analysis of this kind does not require
-additional review; confirm the position with your own institution.
+MIMIC-IV is de-identified, and its collection and the creation of the resource
+were reviewed by the Beth Israel Deaconess Medical Center institutional review
+board, which granted a waiver of informed consent. Check the requirements of
+your own institution before using it.

@@ -115,7 +115,14 @@ def _encode(texts, hf, pooling, prefix, tag, kind):
 def _encode_chunks(texts, hf, pooling, prefix, tag, kind, chunk_tokens=510, stride=384):
     """Encode each document as overlapping token windows; return (vectors, doc_ids).
     Discharge notes truncate at 99.9% under single-window encoding, so single-vector
-    retrieval on them is really first-512-token retrieval. Chunking removes that confound."""
+    retrieval on them is really first-512-token retrieval. Chunking removes that confound.
+
+    The model's document prefix is attached to EVERY window, not only the first: the
+    body text is tokenized without the prefix, sliced into windows of
+    (chunk_tokens - len(prefix_tokens)), and the prefix tokens are prepended to each
+    window. Instruction-tuned encoders (E5 "passage: ", Nomic "search_document: ")
+    require the prefix on every encoded unit; models with an empty prefix are
+    unaffected and produce byte-identical windows to the unprefixed slicing."""
     c = CACHE / f"{tag}_{kind}_chunk.npz"
     if c.exists():
         z = np.load(c); return z["v"], z["ids"]
@@ -126,14 +133,20 @@ def _encode_chunks(texts, hf, pooling, prefix, tag, kind, chunk_tokens=510, stri
     kw = {"trust_remote_code": True} if "nomic" in hf else {}
     tok = AutoTokenizer.from_pretrained(hf, **kw)
     net = AutoModel.from_pretrained(hf, **kw).to(dev).eval()
+    pre_ids = tok(prefix, add_special_tokens=False)["input_ids"] if prefix else []
+    body_tokens = chunk_tokens - len(pre_ids)
+    if body_tokens < 1:
+        raise ValueError(f"prefix of {len(pre_ids)} tokens leaves no room in a "
+                         f"{chunk_tokens}-token window")
+    body_stride = min(stride, body_tokens)
     windows, ids = [], []
     for di, txt in enumerate(texts):
-        toks = tok(prefix + txt, add_special_tokens=False)["input_ids"]
+        toks = tok(txt, add_special_tokens=False)["input_ids"]
         if not toks:
-            toks = tok(prefix + " ", add_special_tokens=False)["input_ids"]
-        for s in range(0, len(toks), stride):
-            windows.append(toks[s:s + chunk_tokens]); ids.append(di)
-            if s + chunk_tokens >= len(toks):
+            toks = tok(" ", add_special_tokens=False)["input_ids"]
+        for s in range(0, len(toks), body_stride):
+            windows.append(pre_ids + toks[s:s + body_tokens]); ids.append(di)
+            if s + body_tokens >= len(toks):
                 break
     cls_id, sep_id = tok.cls_token_id, tok.sep_token_id
     pad = tok.pad_token_id or 0

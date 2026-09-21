@@ -1,259 +1,156 @@
-#!/usr/bin/env python3
-"""Paper 20 — figures.
+"""Paper 20 -- manuscript figures 1-4.
 
-Generates four figures at 300 dpi in TIFF and PDF, sized to PLOS column widths.
+Draws the four figures exactly as embedded in the manuscript, at 300 dpi, as
+RGB PNG (JMIR requires PNG; transparency is flattened onto white so it cannot
+render as black in production).
 
-    Figure 1  cohort flow
-    Figure 2  per-model derangement gradient, forest plot
-    Figure 3  dense versus lexical on both scales
-    Figure 4  candidate explanations, attenuation profile
-
-WHY THE NUMBERS ARE IN THIS FILE
+WHY THE VALUES ARE DECLARED HERE
 --------------------------------
-Figures 1-4 report published values that come from several different scripts and
-several different runs. Re-deriving them here would mean re-running the whole
-pipeline to draw a chart, and would silently produce a different figure if any
-input moved. They are therefore declared explicitly below, in one place, so that
-a change to the manuscript and a change to the figures are the same edit.
+The figures draw on several scripts and runs. Re-deriving them at draw time
+would mean re-running the pipeline to make a chart, and would silently change a
+figure if any input moved. The values are declared once below, each block with
+a comment naming the script and output it came from, so a change to the
+manuscript and a change to a figure are the same edit. If a figure and the
+manuscript disagree, one of them is wrong; check both against the run outputs.
 
-Every value carries a comment naming the script and output it came from, so each
-can be checked against the run it derives from.
-
-Usage:
-    python make_figures.py --out-dir ../figures
-    python make_figures.py --out-dir ../figures --format png   # for drafts
+USAGE
+    python make_figures.py --out-dir ../../figures
 """
-from __future__ import annotations
-
 import argparse
 from pathlib import Path
 
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from matplotlib.patches import FancyArrowPatch, Rectangle
+from matplotlib.patches import FancyBboxPatch
+from PIL import Image
 
-# PLOS: single column 83 mm, 1.5 column 122 mm, double column 173 mm
-MM = 1 / 25.4
-COL1, COL15, COL2 = 83 * MM, 122 * MM, 173 * MM
-DPI = 300
-GREY, DARK, ACCENT, LIGHT = "#6b6b6b", "#222222", "#8c1d40", "#d9d9d9"
+_ap = argparse.ArgumentParser()
+_ap.add_argument("--out-dir", type=Path, required=True)
+OUT = _ap.parse_args().out_dir
+OUT.mkdir(parents=True, exist_ok=True)
 
-plt.rcParams.update({
-    "font.family": "sans-serif",
-    "font.sans-serif": ["Arial", "Helvetica", "DejaVu Sans"],
-    "font.size": 7,
-    "axes.labelsize": 7.5,
-    "axes.titlesize": 8,
-    "xtick.labelsize": 7,
-    "ytick.labelsize": 7,
-    "axes.spines.top": False,
-    "axes.spines.right": False,
-    "axes.linewidth": 0.6,
-    "xtick.major.width": 0.6,
-    "ytick.major.width": 0.6,
-    "lines.linewidth": 1.0,
-})
+plt.rcParams.update({"font.family":"DejaVu Sans","font.size":9,"axes.spines.top":False,"axes.spines.right":False})
+DPI=300
 
-# --------------------------------------------------------------------------
-# Values as reported in the manuscript. Source noted for each block.
-# --------------------------------------------------------------------------
+# ---------------- Figure 1: cohort flow ----------------
+# Counts: paper18x_acuity_build.py build log (notes read, exclusions, linkage,
+# per-stratum counts, 3,896 usable pairs, 739/743 per stratum); 5,878 cohort stays
+# from the acuity file; 331,793 confirmed by paper20_provenance_checks.py section A.
+fig,ax=plt.subplots(figsize=(7.2,6.9)); ax.set_xlim(0,10); ax.set_ylim(3.9,20); ax.axis("off")
+def box(x,y,w,h,t,fs=7.9,fc="white",bold=False):
+    ax.add_patch(FancyBboxPatch((x,y),w,h,boxstyle="round,pad=0.02,rounding_size=0.12",fc=fc,ec="black",lw=0.9))
+    ax.text(x+w/2,y+h/2,t,ha="center",va="center",fontsize=fs,fontweight="bold" if bold else "normal")
+def arrow(x,y1,y2): ax.annotate("",xy=(x,y2),xytext=(x,y1),arrowprops=dict(arrowstyle="-|>",lw=0.9,color="black"))
+L,W=0.3,5.3; cx=L+W/2; H=1.4
+def side(y,t):
+    ax.plot([cx,6.05],[y,y],color="black",lw=0.8)
+    ax.annotate("",xy=(6.1,y),xytext=(6.0,y),arrowprops=dict(arrowstyle="-|>",lw=0.8,color="black"))
+    box(6.15,y-0.55,3.75,1.1,t,fs=6.9,fc="#F2F2F2")
+rows=[(18.4,"MIMIC-IV-Note v2.2 discharge summaries\nread from the release file: n = 331,793"),
+      (15.9,"After these exclusions\nn = 331,790"),
+      (13.4,"Linked to an admission with exactly one ICU stay\nn = 59,654"),
+      (10.9,"Linked to one of 5,878 ICU-cohort stays,\none summary per stay: n = 4,078\n(Q1 1,308 \u00b7 Q2 1,080 \u00b7 Q3 915 \u00b7 Q4 775)"),
+      (8.4,"Usable query\u2013target pairs\nn = 3,896")]
+for y,t in rows: box(L,y,W,H,t)
+for (y1,_),(y2,_) in zip(rows,rows[1:]): arrow(cx,y1,y2+H)
+gaps=[(rows[i][0]+rows[i+1][0]+H)/2 for i in range(4)]
+side(gaps[0],"Excluded: missing text or admission link,\nor under 400 characters (n = 1);\nnear-duplicate text (n = 2)")
+side(gaps[1],"Excluded: not linked to an admission\nwith exactly one ICU stay (n = 272,136)")
+side(gaps[2],"Excluded: not linked to an\nICU-cohort stay (n = 55,576)")
+side(gaps[3],"Excluded: query text persisted in the\ntarget after removal (n = 182)")
+arrow(cx,8.4,6.55)
+ax.text(cx,7.45,"Coarsened exact matching on target-length decile; equal N per stratum",
+        ha="center",va="center",fontsize=7.2,style="italic",
+        bbox=dict(fc="white",ec="none",pad=1.5))
+box(L,4.3,W,2.2,"Primary analysis: length-matched pooled index\n739 documents per derangement stratum\n2,956 documents",fs=7.9,fc="#E6E6E6",bold=True)
+box(6.15,4.3,3.75,2.2,"Sensitivity: unmatched\n743 per stratum\n2,972 documents",fs=7.6,fc="#F2F2F2")
+plt.savefig(OUT/"Figure1.png",dpi=DPI,bbox_inches="tight"); plt.close()
 
-# Figure 1 — cohort flow. paper18x_acuity_build.py stage 2 log; manuscript Table 1.
-FLOW = [
-    ("MIMIC-IV v3.1 ICU stays", "82,422"),
-    ("First MICU stay, adult", "17,940"),
-    ("Length of stay \u2265 72 h", "5,895"),
-    ("After warm-up and LOS cap", "5,878"),
-    ("Linked to a single-ICU-stay admission\nwith a discharge summary", "4,078"),
-    ("Query extraction succeeded", "3,896"),
-    ("Length-matched cells\n(739 per stratum)", "2,956"),
-]
-FLOW_EXCL = [
-    "64,482 excluded: non-MICU unit or age < 18",
-    "12,045 excluded: length of stay < 72 h",
-    "17 excluded: < 50 effective hours",
-    "1,800 excluded: multiple ICU stays per admission,\nor no linked summary",
-    "182 excluded: no eligible query passage",
-    "940 excluded: length-decile matching",
-]
+# ---------------- Figure 2: forest of slopes ----------------
+# Slopes and 95% CIs: paper20_pooled_v2.py, length_matched, --chunk (Table 1).
+# Mean dense slope: paper20_dense_vs_bm25_ci.py.
+dense=[("BGE",-0.01924,-0.02805,-0.01043),("GTE",-0.01734,-0.02657,-0.00812),
+       ("E5",-0.01174,-0.01998,-0.00349),("Nomic",-0.01496,-0.02500,-0.00492),
+       ("MPNet",-0.01311,-0.02151,-0.00471),("MiniLM",-0.01744,-0.02561,-0.00927),
+       ("MedCPT",-0.01003,-0.01693,-0.00314),("BioLORD",-0.01205,-0.01938,-0.00472)]
+bm25=("BM25",-0.01604,-0.03039,-0.00168); mean_d=-0.01449
+fig,ax=plt.subplots(figsize=(6.6,4.4))
+ys=list(range(len(dense)+1,1,-1))
+for (n,b,lo,hi),y in zip(dense,ys):
+    ax.plot([lo,hi],[y,y],color="black",lw=1.1); ax.plot(b,y,"o",color="black",ms=6)
+yb=0.2
+ax.plot([bm25[2],bm25[3]],[yb,yb],color="#555555",lw=1.1); ax.plot(bm25[1],yb,"s",color="#555555",ms=6)
+ax.axhline(1.1,color="#999999",lw=0.7)
+ax.axvline(0,color="black",lw=0.8); ax.axvline(mean_d,color="black",lw=0.8,ls=":")
+ax.set_yticks(ys+[yb]); ax.set_yticklabels([d[0] for d in dense]+["BM25"])
+ax.set_xlabel("Change in reciprocal rank at 10 per derangement quartile (95% CI)")
+ax.text(mean_d,len(dense)+1.75,"mean dense slope",ha="center",fontsize=7.5)
+ax.set_ylim(-0.6,len(dense)+2.2)
+plt.savefig(OUT/"Figure2.png",dpi=DPI,bbox_inches="tight"); plt.close()
 
-# Figure 2 — per-model gradient. paper20_pooled_v2.py, length-matched, chunked.
-MODELS = [
-    # name,      beta,     ci_lo,    ci_hi,   family
-    ("BGE",     -0.0192, -0.0281, -0.0104, "dense"),
-    ("GTE",     -0.0173, -0.0266, -0.0081, "dense"),
-    ("E5",      -0.0125, -0.0211, -0.0040, "dense"),
-    ("Nomic",   -0.0166, -0.0265, -0.0068, "dense"),
-    ("MPNet",   -0.0131, -0.0215, -0.0047, "dense"),
-    ("MiniLM",  -0.0174, -0.0256, -0.0093, "dense"),
-    ("MedCPT",  -0.0100, -0.0169, -0.0031, "dense"),
-    ("BioLORD", -0.0121, -0.0194, -0.0047, "dense"),
-    ("BM25",    -0.0160, -0.0304, -0.0017, "lexical"),
-]
-DENSE_MEAN = -0.0148   # mean of the eight dense slopes
+# ---------------- Figure 3: absolute vs relative ----------------
+# All values: paper20_dense_vs_bm25_ci.py, length_matched, --chunk
+# (dense and BM25 slopes; paired patient-clustered bootstrap differences).
+fig,axs=plt.subplots(1,2,figsize=(7.2,3.6))
+panels=[("Absolute scale\n(RR@10 per quartile)",-0.01449,-0.01604,(0.00155,-0.01099,0.01410)),
+        ("Relative scale\n(slope \u00f7 own Q1 mean)",-0.11477,-0.04104,(-0.07374,-0.10914,-0.03599))]
+for ax,(title,d,b,(df,lo,hi)) in zip(axs,panels):
+    ax.plot(d,2,"o",color="black",ms=7); ax.plot(b,1,"s",color="#555555",ms=7)
+    ax.plot([lo,hi],[0,0],color="black",lw=1.3); ax.plot(df,0,"D",color="black",ms=6)
+    ax.axvline(0,color="black",lw=0.8)
+    ax.set_yticks([2,1,0]); ax.set_yticklabels(["Dense mean","BM25","Dense \u2212 BM25"])
+    ax.set_ylim(-0.7,2.7); ax.set_title(title,fontsize=9)
+    ax.text(0.98,0.04,("difference spans zero" if lo<0<hi else "difference excludes zero"),
+            transform=ax.transAxes,ha="right",fontsize=7.5,style="italic")
+axs[0].set_xlabel("Slope"); axs[1].set_xlabel("Relative slope")
+axs[0].set_xlim(-0.020,0.018); axs[0].set_xticks([-0.02,-0.01,0,0.01])
+axs[1].set_xlim(-0.135,0.012); axs[1].set_xticks([-0.12,-0.08,-0.04,0])
+plt.tight_layout(); plt.savefig(OUT/"Figure3.png",dpi=DPI,bbox_inches="tight"); plt.close()
 
-# Figure 3 — dense vs lexical, both scales. paper20_dense_vs_bm25_ci.py.
-SCALES = [
-    # label, dense, lexical, difference, ci_lo, ci_hi
-    ("Absolute\n(reciprocal rank per stratum)", -0.0148, -0.0160, +0.0012, -0.0113, +0.0139),
-    ("Relative\n(slope / quartile-1 mean)",     -0.1157, -0.0410, -0.0747, -0.1090, -0.0373),
-]
+# ---------------- Figure 4: per-model attenuation (dot plot) ----------------
+# Joint row and the six clinical/process covariates plus target length:
+# paper20_final_robustness.py blocks (A) and (A2), seven covariates, complete-case
+# sample n=2,753. Semantic dispersion: paper20_dispersion.py (full sample).
+# Means are those reported in Table 4, computed from unrounded per-model values.
+M=["BGE","GTE","E5","Nomic","MPNet","MiniLM","MedCPT","BioLORD"]
+rows=[("Joint model, seven covariates","Joint",21.6,[14.2,18.0,13.9,21.6,30.6,12.9,23.7,37.7]),
+      ("Distinct drugs","Complexity",9.4,[4.5,8.3,0.6,11.4,18.9,8.4,7.3,16.0]),
+      ("Diagnosis count","Complexity",6.0,[5.7,6.7,0.7,3.2,14.3,2.9,6.8,7.7]),
+      ("Procedure count","Complexity",1.4,[-0.4,1.9,-0.5,4.3,2.1,0.6,5.6,-2.2]),
+      ("Charlson index","Complexity",0.8,[0.7,1.3,0.8,0.1,0.9,0.7,1.6,-0.2]),
+      ("Semantic dispersion","Document / representation",2.0,[1.9,5.5,1.0,0.3,1.2,1.0,2.6,2.8]),
+      ("Target length","Document / representation",1.0,[0.8,0.7,1.7,0.9,0.2,0.3,1.6,1.7]),
+      ("Documentation lag","Process",0.0,[-0.1,0.0,0.0,0.1,0.0,-0.1,0.1,0.2]),
+      ("Note index","Process",-0.6,[-0.6,-0.4,-1.1,-0.4,-0.3,-0.6,-0.7,-0.7])]
+mk={"Joint":"D","Complexity":"o","Document / representation":"s","Process":"^"}
+import numpy as np
+fig,ax=plt.subplots(figsize=(6.8,4.6))
+ys=list(range(len(rows)))[::-1]
+rng=np.random.default_rng(42)
+for (name,t,rep_m,v),y in zip(rows,ys):
+    jit=rng.uniform(-0.16,0.16,len(v))
+    ax.scatter(v,[y+j for j in jit],marker=mk[t],s=20,facecolor="white",edgecolor="black",lw=0.8,zorder=3)
+    m=rep_m  # reported mean from unrounded per-model values, as in Table 4
+    ax.plot([m,m],[y-0.32,y+0.32],color="black",lw=2.0,zorder=4)
+    ax.text(47.5,y,f"{m:.1f}%",va="center",ha="right",fontsize=7.6)
+ax.axhline(len(rows)-1.5,color="#999999",lw=0.7)
+ax.axvline(0,color="black",lw=0.8)
+ax.axvline(42.0,color="#BBBBBB",lw=0.6)
+ax.set_yticks(ys); ax.set_yticklabels([r[0] for r in rows])
+ax.set_xlim(-4,48); ax.set_xticks([0,5,10,15,20,25,30,35,40]); ax.set_xlabel("Attenuation of the derangement coefficient (%)")
+ax.text(47.5,len(rows)-0.35,"mean",ha="right",va="bottom",fontsize=7.6,style="italic")
+from matplotlib.lines import Line2D
+h=[Line2D([],[],marker=mk[k],ls="",mfc="white",mec="black",label=k) for k in mk]+[Line2D([],[],color="black",lw=2,label="Mean across models")]
+ax.legend(handles=h,loc="lower right",bbox_to_anchor=(0.88,0.0),fontsize=7.2,frameon=False)
+plt.savefig(OUT/"Figure4.png",dpi=DPI,bbox_inches="tight"); plt.close()
 
-# Figure 4 — candidate attenuation. paper20_final_robustness.py and manuscript Table 4.
-CANDIDATES = [
-    # label, attenuation, group
-    ("Distinct drugs",            0.101, "Complexity"),
-    ("Diagnosis count",           0.064, "Complexity"),
-    ("Procedure count",           0.014, "Complexity"),
-    ("Charlson index",            0.009, "Complexity"),
-    ("Semantic dispersion",       0.019, "Representation"),
-    ("Target length",             0.009, "Document"),
-    ("Documentation lag",         0.000, "Process"),
-    ("Note index",               -0.005, "Process"),
-    ("Query position",            0.000, "Query"),
-    ("Same-patient competition",  0.000, "Design"),
-]
-JOINT = 0.220
-GROUP_COLOUR = {"Complexity": "#8c1d40", "Representation": "#4a6fa5",
-                "Document": "#5f8d4e", "Process": "#a67c00",
-                "Query": "#6b6b6b", "Design": "#999999"}
-
-
-def save(fig, out_dir: Path, name: str, fmts):
-    out_dir.mkdir(parents=True, exist_ok=True)
-    for f in fmts:
-        p = out_dir / f"{name}.{f}"
-        kw = {"dpi": DPI, "bbox_inches": "tight", "pad_inches": 0.02}
-        if f == "tif":
-            kw["pil_kwargs"] = {"compression": "tiff_lzw"}
-        fig.savefig(p, **kw)
-        print(f"  wrote {p.name}")
-    plt.close(fig)
-
-
-# ------------------------------------------------------------- figure 1 ---
-def fig_cohort(out_dir, fmts):
-    fig, ax = plt.subplots(figsize=(COL15, 6.0))
-    ax.set_xlim(0, 10); ax.set_ylim(0, len(FLOW) * 2 + 1); ax.axis("off")
-    box_w, box_x = 4.4, 0.4
-    ys = [len(FLOW) * 2 - 1 - i * 2 for i in range(len(FLOW))]
-    for (label, n), y in zip(FLOW, ys):
-        ax.add_patch(Rectangle((box_x, y - 0.62), box_w, 1.24,
-                               facecolor="white", edgecolor=DARK, linewidth=0.7))
-        ax.text(box_x + 0.18, y + 0.16, label, va="center", ha="left",
-                fontsize=7, color=DARK)
-        ax.text(box_x + box_w - 0.18, y - 0.30, f"n = {n}", va="center",
-                ha="right", fontsize=7.5, color=ACCENT, fontweight="bold")
-    for i, txt in enumerate(FLOW_EXCL):
-        y0, y1 = ys[i], ys[i + 1]
-        ym = (y0 + y1) / 2
-        ax.add_patch(FancyArrowPatch((box_x + box_w / 2, y0 - 0.62),
-                                     (box_x + box_w / 2, y1 + 0.62),
-                                     arrowstyle="-|>", mutation_scale=8,
-                                     linewidth=0.7, color=DARK))
-        ax.plot([box_x + box_w / 2, box_x + box_w + 0.35], [ym, ym],
-                color=GREY, linewidth=0.6)
-        ax.text(box_x + box_w + 0.45, ym, txt, va="center", ha="left",
-                fontsize=6.3, color=GREY)
-    save(fig, out_dir, "Fig1_cohort_flow", fmts)
-
-
-# ------------------------------------------------------------- figure 2 ---
-def fig_forest(out_dir, fmts):
-    fig, ax = plt.subplots(figsize=(COL15, 3.1))
-    ys = list(range(len(MODELS)))[::-1]
-    for (name, b, lo, hi, fam), y in zip(MODELS, ys):
-        c = ACCENT if fam == "dense" else DARK
-        m = "o" if fam == "dense" else "s"
-        ax.plot([lo, hi], [y, y], color=c, linewidth=1.1, solid_capstyle="round")
-        ax.plot([b], [y], m, color=c, markersize=4.2, zorder=3)
-    ax.axvline(0, color=GREY, linewidth=0.6, linestyle="-")
-    ax.axvline(DENSE_MEAN, color=ACCENT, linewidth=0.7, linestyle=":",
-               label=f"dense mean ({DENSE_MEAN:+.4f})")
-    ax.set_yticks(ys); ax.set_yticklabels([m[0] for m in MODELS])
-    ax.set_xlabel("Change in reciprocal rank per derangement quartile (95% CI)")
-    ax.axhline(0.5, color=LIGHT, linewidth=0.8)
-    ax.text(0.0012, 0.0, "lexical\nbaseline", fontsize=6.2, color=DARK,
-            va="center", ha="left")
-    # legend above the plot: at loc="lower left" it overprints the BM25 row
-    ax.legend(frameon=False, fontsize=6.3, loc="lower center",
-              bbox_to_anchor=(0.5, 1.01), ncol=1)
-    ax.set_xlim(-0.034, 0.007)
-    ax.set_ylim(-0.7, len(MODELS) - 0.3)
-    save(fig, out_dir, "Fig2_model_gradient", fmts)
-
-
-# ------------------------------------------------------------- figure 3 ---
-def fig_scales(out_dir, fmts):
-    fig, axes = plt.subplots(1, 2, figsize=(COL15, 2.5))
-    for ax, (label, dense, lex, diff, lo, hi) in zip(axes, SCALES):
-        ax.barh([1, 0], [dense, lex], height=0.42,
-                color=[ACCENT, DARK], edgecolor="none")
-        ax.set_yticks([1, 0]); ax.set_yticklabels(["Dense (mean)", "BM25"])
-        ax.axvline(0, color=GREY, linewidth=0.6)
-        ax.set_title(label, fontsize=7.2, pad=6)
-        ax.set_xlabel("slope")
-        star = "" if lo <= 0 <= hi else " *"
-        ax.text(0.02, -0.42,
-                f"difference {diff:+.4f}\n95% CI [{lo:+.4f}, {hi:+.4f}]{star}",
-                transform=ax.transAxes, fontsize=6.3, color=GREY, va="top")
-        ax.set_ylim(-0.95, 1.6)
-    fig.text(0.5, -0.10,
-             "* interval excludes zero. The absolute difference does not; the "
-             "relative difference does.",
-             ha="center", fontsize=6.2, color=GREY)
-    fig.tight_layout()
-    save(fig, out_dir, "Fig3_dense_vs_lexical", fmts)
-
-
-# ------------------------------------------------------------- figure 4 ---
-def fig_candidates(out_dir, fmts):
-    items = sorted(CANDIDATES, key=lambda x: x[1])
-    fig, ax = plt.subplots(figsize=(COL15, 3.3))
-    ys = list(range(len(items)))
-    for (label, val, grp), y in zip(items, ys):
-        ax.barh(y, val, height=0.55, color=GROUP_COLOUR.get(grp, GREY),
-                edgecolor="none")
-    ax.axvline(JOINT, color=DARK, linewidth=0.9, linestyle="--")
-    ax.text(JOINT + 0.004, len(items) - 0.4,
-            f"all structured covariates\nentered jointly ({JOINT:.1%})",
-            fontsize=6.4, color=DARK, va="top")
-    ax.set_yticks(ys); ax.set_yticklabels([i[0] for i in items])
-    ax.set_xlabel("Mean attenuation of the derangement coefficient")
-    ax.set_xlim(-0.02, 0.30)
-    ax.xaxis.set_major_formatter(lambda v, _: f"{v:.0%}")
-    ax.axvline(0, color=GREY, linewidth=0.6)
-    seen, handles = [], []
-    for _, _, g in items:
-        if g not in seen:
-            seen.append(g)
-            handles.append(plt.Line2D([0], [0], color=GROUP_COLOUR[g],
-                                      linewidth=4, label=g))
-    # legend above the axes: inside, it overprints the zero-attenuation bars
-    ax.legend(handles=handles, frameon=False, fontsize=6.2, ncol=6,
-              loc="lower center", bbox_to_anchor=(0.5, 1.01), handlelength=1.2,
-              columnspacing=1.0)
-    ax.set_ylim(-0.8, len(items) - 0.2)
-    save(fig, out_dir, "Fig4_candidate_attenuation", fmts)
-
-
-def main() -> None:
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--out-dir", type=Path, default=Path("../figures"))
-    ap.add_argument("--format", nargs="+", default=["tif", "pdf"],
-                    choices=["tif", "pdf", "png", "eps"],
-                    help="PLOS wants TIFF or EPS; PDF is convenient for drafts")
-    ap.add_argument("--only", nargs="+", type=int, choices=[1, 2, 3, 4])
-    a = ap.parse_args()
-    fns = {1: fig_cohort, 2: fig_forest, 3: fig_scales, 4: fig_candidates}
-    for k in (a.only or [1, 2, 3, 4]):
-        print(f"Figure {k}:")
-        fns[k](a.out_dir, a.format)
-    print("\nCheck before submission: PLOS requires 300 dpi minimum, TIFF with "
-          "LZW compression or EPS, and each figure under 10 MB. Run the PLOS "
-          "figure checker (PACE) on the output.")
-
-
-if __name__ == "__main__":
-    main()
+# Flatten to RGB on white (JMIR production renders transparency unpredictably).
+for _n in range(1, 5):
+    _p = OUT / f"Figure{_n}.png"
+    _im = Image.open(_p)
+    if _im.mode == "RGBA":
+        _bg = Image.new("RGB", _im.size, (255, 255, 255))
+        _bg.paste(_im, mask=_im.getchannel("A"))
+        _bg.save(_p, dpi=(DPI, DPI))
+print(f"wrote Figure1-4.png to {OUT}")

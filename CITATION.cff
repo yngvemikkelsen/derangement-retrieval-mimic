@@ -1,7 +1,8 @@
 cff-version: 1.2.0
 title: >-
-  Analysis code for: Retrieval performance over clinical free text is
-  heterogeneous with respect to acute physiological derangement
+  Analysis code for: Clinical Free-Text Retrieval Across an Acute
+  Physiological Derangement Composite in Intensive Care Unit Discharge
+  Summaries
 message: >-
   If you use this software, please cite both the software and the
   manuscript it accompanies.
@@ -10,10 +11,10 @@ authors:
   - family-names: Mikkelsen
     given-names: Yngve
     orcid: https://orcid.org/0000-0003-1543-3805
-repository-code: https://github.com/REPLACE-ME/REPLACE-ME
+repository-code: https://github.com/yngvemikkelsen/derangement-retrieval-mimic
 license: MIT
-version: 1.0.0
-date-released: "2026-08-21"
+version: 1.1.0
+date-released: "2026-09-21"
 keywords:
   - clinical natural language processing
   - information retrieval
@@ -21,25 +22,26 @@ keywords:
   - subgroup performance
   - MIMIC-IV
 abstract: >-
-  Code to reproduce an evaluation of whether known-item retrieval performance
-  over ICU discharge summaries varies with the acute physiological derangement
-  of the patient whose record is being retrieved. Thirteen transformer encoders
-  and a BM25 baseline are evaluated against a single pooled index, with
-  candidate explanations assessed across six groups. Contains no patient data;
-  MIMIC-IV and MIMIC-IV-Note must be obtained from PhysioNet under their own
-  data use agreements.
+  Code to reproduce a stratified evaluation of whether known-item retrieval
+  performance over ICU discharge summaries varies across strata of an early
+  physiological derangement composite measured independently of the text.
+  Thirteen transformer encoders and a BM25 baseline are evaluated against a
+  single pooled index, with alternative explanations, alternative query draws,
+  an age-free exposure and a lab-only organ-dysfunction exposure. Contains no
+  patient data; MIMIC-IV and MIMIC-IV-Note must be obtained from PhysioNet under
+  their own data use agreements.
 references:
   - type: article
     title: >-
-      Retrieval performance over clinical free text is heterogeneous with
-      respect to acute physiological derangement: an evaluation of thirteen
-      embedding models on ICU discharge summaries
+      Clinical Free-Text Retrieval Across an Acute Physiological Derangement
+      Composite in Intensive Care Unit Discharge Summaries: Stratified
+      Evaluation Study
     authors:
       - family-names: Mikkelsen
         given-names: Yngve
         orcid: https://orcid.org/0000-0003-1543-3805
     year: 2026
-    notes: Under review. Replace with the DOI on acceptance.
+    notes: Submitted to JMIR AI. Replace with the DOI on acceptance.
   - type: database
     title: "MIMIC-IV (version 3.1)"
     authors:

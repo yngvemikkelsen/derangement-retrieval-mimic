@@ -36,10 +36,21 @@ WHAT IS REPORTED
 ----------------
   per draw, per model : slope of reciprocal rank on stratum, CR1 clustered
   across draws        : mean slope, spread, and how many draws are significant
-  query descriptives  : position in note, length, mean IDF, and residual lexical
-                        overlap with the target, BY STRATUM — because equal
-                        extraction rates establish equal probability of getting a
-                        query, not equivalence of the queries obtained
+  query descriptives  : length, mean IDF, and residual lexical overlap with the
+                        target, BY STRATUM — because equal extraction rates
+                        establish equal probability of getting a query, not
+                        equivalence of the queries obtained
+
+CORRECTION (2026-09-11)
+-----------------------
+The mean-IDF column was previously computed by looking WORD tokens up in the
+structure returned by ts.build_df, whose keys are SENTENCE keys (it exists to
+reject sentences appearing in more than three documents). Every lookup therefore
+missed, every term scored log(ndoc/1), and the column reported the constant
+log(2656)=7.885 in all four strata. A word-level document frequency is now built
+separately over the same cohort and used for IDF. Nothing else changed: the RNG
+is untouched and cell selection is unaffected, so qs_cells.parquet is rebuilt
+identically and the embedding cache remains valid. The script verifies that.
 
 Requires two_site.py and two_site_v2.py beside this script.
 
@@ -139,8 +150,23 @@ def build(a, ts, tsv2):
             .drop_duplicates(subset=["stay_id"]).reset_index(drop=True))
     log(f"cohort: {len(df):,} notes, {dropped:,} near-duplicates dropped")
 
-    log("building pooled document frequency ...")
+    log("building pooled document frequency (sentence level, for the extractor) ...")
     dfreq = ts.build_df(df.text.tolist())
+
+    # Word-level document frequency, for the IDF descriptive ONLY. dfreq above is
+    # keyed by sentence and must not be used for word lookups.
+    log("building word-level document frequency (for IDF) ...")
+    from collections import Counter
+    wdf: Counter = Counter()
+    for t in df.text:
+        wdf.update(set(re.findall(r"[a-z]{3,}", str(t).lower())))
+    ndoc_w = len(df)
+    common = [w for w, _ in wdf.most_common(3)]
+    log(f"  word DF over {ndoc_w:,} notes, {len(wdf):,} distinct tokens; "
+        f"most common {[(w, wdf[w]) for w in common]}")
+    if not wdf or max(wdf.values()) < 2:
+        sys.exit("[fatal] word document frequency looks degenerate; IDF would be "
+                 "meaningless. Check the tokenizer before proceeding.")
 
     rng = np.random.RandomState(SEED)
     recs = []
@@ -177,17 +203,33 @@ def build(a, ts, tsv2):
     keep = pd.concat([r[r.quartile == q].sample(N, random_state=SEED)
                       for q in QUARTILES], ignore_index=True)
     a.out_dir.mkdir(parents=True, exist_ok=True)
-    keep.to_parquet(a.out_dir / "qs_cells.parquet", index=False)
-    log(f"[wrote] {a.out_dir/'qs_cells.parquet'}  ({len(keep):,} rows)")
-    query_descriptives(keep, dfreq, a)
+    # The embedding cache is keyed on cell identity, not content. If a rebuild
+    # changes the cells, reusing the cache would silently score the wrong targets.
+    prev = a.out_dir / "qs_cells.parquet"
+    if prev.exists():
+        old = pd.read_parquet(prev)
+        qcols = sorted(c for c in keep.columns if re.fullmatch(r"q\d+", c))
+        same = (len(old) == len(keep)
+                and list(old.stay_id) == list(keep.stay_id)
+                and all(list(old[c]) == list(keep[c]) for c in qcols if c in old)
+                and list(old.target) == list(keep.target))
+        if same:
+            log("cells identical to the previous build; embedding cache stays valid")
+        else:
+            log("*** CELLS CHANGED from the previous build. The embedding cache in "
+                f"{a.out_dir/'emb'} is now STALE. Delete qs_*_d_chunk.npz and "
+                "qs_*_d.npz there and re-run --encode before --analyse. ***")
+    keep.to_parquet(prev, index=False)
+    log(f"[wrote] {prev}  ({len(keep):,} rows)")
+    query_descriptives(keep, wdf, ndoc_w, a)
 
 
-def query_descriptives(keep: pd.DataFrame, dfreq, a):
+def query_descriptives(keep: pd.DataFrame, wdf, ndoc_w: int, a):
     """Do the queries themselves differ by stratum?"""
     L = ["", "QUERY DESCRIPTIVES BY STRATUM (draw 0)", "-" * 78,
          f"{'stratum':<9}{'n':>7}{'words':>9}{'chars':>9}{'mean IDF':>11}"
          f"{'pos in note':>13}{'overlap':>10}"]
-    ndoc = max(len(keep), 1)
+    miss_tok = tot_tok = 0
     for q in QUARTILES:
         s = keep[keep.quartile == q]
         w = s.q0.str.split().str.len()
@@ -196,14 +238,21 @@ def query_descriptives(keep: pd.DataFrame, dfreq, a):
         for _, r in s.iterrows():
             toks = re.findall(r"[a-z]{3,}", str(r.q0).lower())
             if toks:
-                idf.append(np.mean([np.log(ndoc / (1 + dfreq.get(t, 0))) for t in toks]))
+                tot_tok += len(toks)
+                miss_tok += sum(1 for t in toks if wdf.get(t, 0) == 0)
+                idf.append(np.mean([np.log(ndoc_w / (1 + wdf.get(t, 0))) for t in toks]))
                 tt = set(re.findall(r"[a-z]{3,}", str(r.target).lower()))
                 ov.append(len(set(toks) & tt) / len(set(toks)))
             pos.append(0.0)      # position requires the pre-removal text; see note
         L.append(f"q{q:<8}{len(s):>7,}{w.mean():>9.1f}{ch.mean():>9.0f}"
                  f"{np.mean(idf) if idf else float('nan'):>11.3f}"
                  f"{'n/a':>13}{np.mean(ov) if ov else float('nan'):>10.3f}")
+    frac = (miss_tok / tot_tok) if tot_tok else float("nan")
     L += ["",
+          f"  mean IDF uses a word-level document frequency over {ndoc_w:,} notes.",
+          f"  query tokens absent from that vocabulary: {miss_tok:,}/{tot_tok:,} "
+          f"({frac:.2%}). A figure near 100% would mean the lookup is failing and",
+          "  the IDF column is a constant; that was the defect corrected on 2026-09-11.",
           "  overlap = share of query content tokens also present in the target",
           "  AFTER the query span was removed. If this rises with stratum, queries",
           "  in those records are more repeated elsewhere in the note, which would",

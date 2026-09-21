@@ -1,7 +1,9 @@
 # Reproducing the analysis
 
-Every path below is a placeholder. Substitute your own; nothing is hard-coded to
-a particular machine, and no script infers a location it was not given.
+Every path below is a placeholder. Scripts take their inputs as command-line
+arguments or environment variables. Where a script has a default path, it
+assumes a PhysioNet download under the home directory; override it rather than
+relying on it.
 
 Set these once:
 
@@ -15,64 +17,96 @@ export WORK=/path/to/working/directory      # cohort, embeddings, results
 
 ## Prerequisites
 
-Credentialed PhysioNet access to MIMIC-IV v3.1 and MIMIC-IV-Note v2.2, plus a
-completed CITI training course. See `DATA_ACCESS.md`.
+Credentialed PhysioNet access to MIMIC-IV v3.1 and MIMIC-IV-Note v2.2. See
+`DATA_ACCESS.md`.
 
-An upstream ICU cohort with hourly physiological series and a first-24-hour
-derangement composite. The composite is an ordinal 0–18 score: quartile-based
-scores (0–3) on heart rate, mean arterial pressure, respiratory rate, oxygen
-saturation and Glasgow Coma Scale, each scored on distance from the normal
-range, plus an age tertile (0–2) and a binary indicator of mechanical
-ventilation within 24 hours. The scripts expect a CSV with `stay_id` and
-`acuity_quartile`, and stage 1 additionally uses the per-component columns if
-present.
+An upstream ICU cohort and exposure file from the companion analysis, supplied
+as a CSV with `stay_id`, `acuity_quartile`, the per-component scores and the
+aggregated component values. The cohort and the composite are fully specified in
+Multimedia Appendix 1 of the manuscript:
+
+- **Cohort.** From all 94,458 MIMIC-IV v3.1 ICU stays: adults; stays of at least
+  12 hours; the earliest such stay in each admission, in any unit; first care
+  unit a medical ICU (unit name ending "(MICU)"); stay of at least 72 hours;
+  warm-up truncation; truncation at 720 effective hours with at least 50
+  effective hours after warm-up. 5,878 stays.
+- **Composite.** Hourly medians of charted vital signs after plausibility
+  filtering, carried forward. Over the first 24 hours after all five vital signs
+  have a value: largest deviation of heart rate from 80 beats/min and of
+  respiratory rate from 18 breaths/min, and lowest mean arterial pressure,
+  oxygen saturation and Glasgow Coma Scale, each scored by within-cohort
+  quartile (worst highest); age tertile; mechanical ventilation starting within
+  24 hours of ICU admission. Glasgow Coma Scale scores three levels (1 to 3)
+  because of ties, so the attainable range is 1 to 18. Strata are within-cohort
+  quartiles of the total, assigned by value.
+
+### 0. Provenance checks (optional, recommended)
+
+```bash
+cd code/stage1_cohort
+python paper20_provenance_checks.py \
+  --mimic-root $MIMIC --mimic-note $NOTE \
+  --acuity $WORK/acuity.csv --hourly $WORK/hourly_series.parquet
+```
+
+Recomputes from the raw release every count that describes the source cohort
+and the exposure, printing each beside the reported value: the discharge-summary
+record count (331,793 in the release file, with two parsers; the documentation
+states 331,794), the attrition from 94,458 ICU stays to 5,895, the warm-up
+distribution, the component cut points and strata, and ICU length of stay by
+stratum.
 
 ---
 
 ## Stage 1 — cohort, queries, exposure
 
-### 1.1 Build the acuity-stratified cells
+### 1.1 Build the derangement-stratified cells
 
 ```bash
-cd code/stage1_cohort
 python paper18x_acuity_build.py --build \
-  --acuity  $WORK/acuity.csv \
-  --out-dir $WORK/cells
+  --mimic-note $NOTE --mimic-root $MIMIC \
+  --acuity  $WORK/acuity.csv --out-dir $WORK/cells
 ```
 
 Roughly ten minutes, most of it reading and deduplicating the discharge
-summaries. Writes two cell sets: `length_matched/` (primary, matched on
-target-length decile) and `natural/` (sensitivity).
+summaries. Writes `length_matched/` (primary, coarsened exact matching on
+target-length decile) and `natural/` (unmatched sensitivity). Add
+`--full-cohort` to also write `full_cohort/`, all usable pairs without
+subsampling or matching (step 3.7).
 
-**Check before proceeding.** The log reports matched N per stratum and the
-per-quartile attrition. In the published run this was 739 per stratum for the
-length-matched set and 743 for the unmatched. If matched N falls much below
-about 600 the downstream comparisons are noisier than reported.
+**Check before proceeding.** 739 per stratum (length-matched), 743 (unmatched),
+and 3,896 usable query-target pairs from 4,078 linked summaries in the published
+run.
 
 ### 1.2 Characterise the exposure
 
 ```bash
 python paper20_acuity_validation.py \
-  --mimic-root $MIMIC \
-  --acuity     $WORK/acuity.csv \
-  --out-dir    $WORK/validation
+  --mimic-root $MIMIC --acuity $WORK/acuity.csv --out-dir $WORK/validation
 ```
 
-Fifteen to forty minutes; three streaming passes over `labevents`. Add
-`--skip-labs` for the mortality and length-of-stay endpoints alone, which takes
-about a minute.
+Hospital and ICU mortality, ICU length of stay, discrimination for hospital
+mortality, and a partial SOFA sub-score from platelets and creatinine (available
+in 98.5% of stays). Also writes the age-free stratification used in step 3.8.
+Add `--skip-labs` for the mortality and length-of-stay endpoints alone.
 
-Reports hospital and ICU mortality by stratum, ICU length of stay,
-discrimination for hospital mortality, and a partial SOFA sub-score built from
-platelets and creatinine — the two organ systems that are both well covered in
-this cohort and share no input with the composite. It also writes an age-free
-stratification for the sensitivity analysis.
+### 1.3 Organ-dysfunction strata (alternative exposure)
 
-**What the published run found**, and it constrains what the paper may claim:
-hospital mortality rose monotonically (17.0% to 34.3%) but discrimination was
-modest (AUROC 0.597), and the Spearman correlation with the partial SOFA
-sub-score was +0.004. The composite indexes acute vital-sign derangement, not
-organ dysfunction.
+```bash
+python paper20_sofa_strata.py --probe --mimic-root $MIMIC \
+  --acuity $WORK/acuity.csv --out-dir $WORK/sofa          # inspect resolved itemids
+python paper20_sofa_strata.py --build --mimic-root $MIMIC \
+  --acuity $WORK/acuity.csv --out-dir $WORK/sofa
+python paper18x_acuity_build.py --build \
+  --mimic-note $NOTE --mimic-root $MIMIC \
+  --acuity $WORK/sofa/paper18_acuity_sofa3.csv --out-dir $WORK/cells_sofa3
+```
+
+Scores the coagulation, liver and renal SOFA components over the first 24 hours
+after ICU admission; this lab-only score shares no input with the composite.
+Complete for 4,039 of 5,878 stays; 523 documents per quartile after cell
+building. Item identifiers are resolved at run time from `d_labitems` and
+`d_items`; check the `--probe` output before building.
 
 ---
 
@@ -80,35 +114,49 @@ organ dysfunction.
 
 ```bash
 cd ../stage2_retrieval
-for SET in natural length_matched; do
+for SET in length_matched natural full_cohort; do
   RESULTS_DIR=$WORK/cells/$SET \
     python -u two_site_v2_analyze_p18x.py --run --bm25 --chunk \
-    2>&1 | tee $WORK/cells/stage3_${SET}_chunk.log
+    2>&1 | tee $WORK/cells/stage2_${SET}.log
 done
 ```
 
-Three to five hours for both cell sets on Apple Silicon with MPS. This is the
-only step needing an accelerator. Model weights download from Hugging Face on
-first use.
+Repeat with `RESULTS_DIR` pointing at the age-free cell set (step 3.8) and at
+`$WORK/cells_sofa3/length_matched` (step 3.9). A few hours per cell set on Apple
+Silicon with MPS; this is the only step needing an accelerator. Writes an
+embedding cache under `<set>/two_site_v2_emb/` that every stage 3 script reads.
 
-Writes an embedding cache under `$WORK/cells/<set>/two_site_v2_emb/`. Every
-stage 3 script reads that cache, so stage 3 never re-encodes.
+Long documents are scored as overlapping 510-token windows (stride 384) using
+the maximum chunk similarity. Where a model requires a document prefix, it is
+applied to every window, not only the first (see CHANGELOG, 1.1.0).
 
-The panel is eight contrastively trained retrievers — BGE, GTE, E5, Nomic,
-MPNet, MiniLM, MedCPT, BioLORD — and five masked-language-model encoders
-retained as a negative control: BERT, BioBERT, ClinicalBERT, BiomedBERT and
-SciBERT. Note that `medicalai/ClinicalBERT` is a different model from Alsentzer
-et al.'s `Bio_ClinicalBERT`; the former is used here.
+| key | Hugging Face model | family | pooling | query prefix | document prefix |
+|---|---|---|---|---|---|
+| bge | BAAI/bge-base-en-v1.5 | contrastive | CLS | `Represent this sentence for searching relevant passages: ` | none |
+| gte | thenlper/gte-base | contrastive | mean | none | none |
+| e5 | intfloat/e5-base-v2 | contrastive | mean | `query: ` | `passage: ` |
+| nomic | nomic-ai/nomic-embed-text-v1.5 | contrastive | mean | `search_query: ` | `search_document: ` |
+| mpnet | sentence-transformers/all-mpnet-base-v2 | contrastive | mean | none | none |
+| minilm | sentence-transformers/all-MiniLM-L6-v2 | contrastive | mean | none | none |
+| medcpt | ncbi/MedCPT-Query-Encoder (queries); ncbi/MedCPT-Article-Encoder (documents) | contrastive | CLS | none | none |
+| biolord | FremyCompany/BioLORD-2023 | contrastive | mean | none | none |
+| bert-base | bert-base-uncased | MLM control | CLS | none | none |
+| biobert | dmis-lab/biobert-v1.1 | MLM control | CLS | none | none |
+| clinicalbert | medicalai/ClinicalBERT | MLM control | CLS | none | none |
+| pubmedbert | microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext | MLM control | CLS | none | none |
+| scibert | allenai/scibert_scivocab_uncased | MLM control | CLS | none | none |
 
-A benign `KeyError` on site × genre may appear at the end of the run. It fires
-after every output needed downstream has been written.
+Revisions are not pinned; weights download from Hugging Face on first use.
+`medicalai/ClinicalBERT` is a different model from
+`emilyalsentzer/Bio_ClinicalBERT`. A benign `KeyError` on site × genre may
+appear at the end of a run, after every output needed downstream has been
+written.
 
 ---
 
 ## Stage 3 — analysis
 
-All of stage 3 runs off the cache and takes minutes. Order does not matter
-except that the primary analysis is worth running first.
+All of stage 3 reads the embedding cache and takes minutes.
 
 ```bash
 cd ../stage3_analysis
@@ -121,55 +169,54 @@ python paper20_pooled_v2.py --results $WORK/cells/length_matched --chunk
 python paper20_pooled_v2.py --results $WORK/cells/natural        --chunk
 ```
 
-Reciprocal rank and recall at 10 by stratum against the common index, the
-same-patient sensitivity, and the separability diagnostics.
+RR@10 (primary) and recall@10 (secondary, descriptive) by stratum against the
+common index; the same-patient masking sensitivity; separability diagnostics.
 
-### 3.2 Dense versus lexical, on both scales
+### 3.2 Exact separability values (Table 3)
+
+```bash
+python paper20_table3_exact.py --results $WORK/cells/length_matched
+```
+
+Target and best-non-target scores at full precision. Prints the per-quartile
+MRR first; it must match step 3.1.
+
+### 3.3 Dense versus lexical, on both scales
 
 ```bash
 python paper20_dense_vs_bm25_ci.py --results $WORK/cells/length_matched --chunk
 ```
 
-Reports the comparison in absolute reciprocal-rank units and on a relative
-scale, each with a paired patient-clustered bootstrap. Both are reported because
-they point in different directions: the absolute difference includes zero while
-the relative one does not.
+Absolute and relative slope differences with a paired patient-clustered
+bootstrap.
 
-### 3.3 Per-quartile design (sensitivity)
+### 3.4 Per-quartile index design (sensitivity)
 
 ```bash
 python paper20_gradient_test.py --results $WORK/cells/length_matched --chunk
+python paper20_gradient_test.py --results $WORK/cells/natural        --chunk
 ```
 
-### 3.4 Alternative explanations
+### 3.5 Alternative explanations
 
 ```bash
-# structured covariates, one at a time
-python paper20_complexity_test.py \
-  --results $WORK/cells/length_matched --chunk \
+python paper20_complexity_test.py --results $WORK/cells/length_matched --chunk \
   --mimic-root $MIMIC --mimic-note $NOTE
-
-# within-document semantic dispersion
 python paper20_dispersion.py --results $WORK/cells/length_matched --chunk
-
-# query position in the source note
-python paper20_query_position.py \
-  --acuity $WORK/acuity.csv --mimic-note $NOTE --mimic-root $MIMIC \
+python paper20_query_position.py --acuity $WORK/acuity.csv \
+  --mimic-note $NOTE --mimic-root $MIMIC \
   --out-dir $WORK/position --rr-from $WORK/cells/length_matched
-
-# joint conditioning, Charlson diagnostics, eligibility by stratum
-python paper20_final_robustness.py \
-  --results $WORK/cells/length_matched \
+python paper20_final_robustness.py --results $WORK/cells/length_matched \
   --mimic-root $MIMIC --mimic-note $NOTE --out-dir $WORK/robustness
 ```
 
-`paper20_final_robustness.py` accepts a `--compression` argument. That is the
-post-hoc analysis described in the repository README and **not reported in the
-manuscript**; leave it unset to reproduce the published results.
+`paper20_final_robustness.py` fits the joint model of seven covariates (four
+patient-complexity measures, two documentation measures and target length) on
+the complete-case sample, and reports Charlson diagnostics and query-window
+eligibility. Leave `--compression` unset: it is the post-hoc analysis described
+in the README and is not reported.
 
-### 3.5 Query sensitivity
-
-Three stages, because the encoding is separate:
+### 3.6 Alternative query draws
 
 ```bash
 python paper20_query_sensitivity.py --build --draws 5 \
@@ -179,56 +226,75 @@ python paper20_query_sensitivity.py --encode  --out-dir $WORK/qs
 python paper20_query_sensitivity.py --analyse --out-dir $WORK/qs
 ```
 
-Five non-overlapping eligible windows are drawn per document and **all five are
-removed from every target**, so the candidate index is identical across draws
-and the draws differ only in which held-out window serves as the query. Targets
-are therefore encoded once; only the queries are re-encoded. Build is about ten
-minutes, encoding an hour or so, analysis minutes.
+Built independently from all 4,078 linked summaries: five non-overlapping
+eligible windows per document, all five removed from every target, so the
+pooled candidate index is identical across draws. 664 documents per stratum is
+the largest common cell size after its own exclusions. The build step checks
+that rebuilt cells match any existing embedding cache.
 
-### 3.6 Age-free sensitivity
+### 3.7 All usable pairs
 
-Rerun stages 1.1 through 3.1 pointing `--acuity` at the age-free stratification
-written by step 1.2, into a separate output directory. The strata differ, so the
-cells must be rebuilt and re-encoded; nothing carries over.
+```bash
+python paper20_pooled_v2.py --results $WORK/cells/full_cohort --chunk
+```
+
+All 3,896 usable pairs in one index, without subsampling or length matching
+(cells from step 1.1 with `--full-cohort`).
+
+### 3.8 Age-free exposure
+
+Rerun step 1.1 with `--acuity` pointing at the age-free stratification from
+step 1.2, into a separate directory; encode it (stage 2); run step 3.1 on it.
+
+### 3.9 Organ-dysfunction exposure
+
+```bash
+python paper20_pooled_v2.py --results $WORK/cells_sofa3/length_matched --chunk
+python paper20_sofa_continuous.py --results $WORK/cells_sofa3/length_matched \
+  --sofa $WORK/sofa/paper18_acuity_sofa3.csv
+python paper20_exposure_contrast.py --results $WORK/cells_sofa3/length_matched \
+  --sofa $WORK/sofa/paper18_acuity_sofa3.csv --primary $WORK/acuity.csv
+```
+
+Slopes on the organ-dysfunction quartile and on the score value, then both
+exposures on identical records within one index, with a paired
+patient-clustered bootstrap (2,000 replicates) for the slope difference.
 
 ---
 
 ## Expected results
 
-The published figures, for checking a reproduction:
-
 | quantity | value |
 |---|---|
+| source cohort, ICU stays | 5,878 |
+| linked discharge summaries / usable query-target pairs | 4,078 / 3,896 |
 | documents, length-matched pooled index | 2,956 |
-| mean relative decline, eight dense models | −37.3% |
+| mean decline Q1 to Q4, eight dense models (mean of model-specific declines) | −37.2% |
 | models significant after Holm adjustment | 8/8 |
-| BM25 relative decline | −13.4% |
-| absolute dense−BM25 slope difference | +0.0012 (95% CI −0.0113 to +0.0139) |
-| relative dense−BM25 slope difference | −0.075 (95% CI −0.109 to −0.037) |
-| note length, Spearman with stratum | −0.005 |
-| joint covariate attenuation | 22.0% |
+| BM25 decline | −13.4% |
+| absolute dense−BM25 slope difference | +0.0016 (95% CI −0.0110 to +0.0141) |
+| relative dense−BM25 slope difference | −0.074 (95% CI −0.109 to −0.036) |
+| joint seven-covariate attenuation | 21.6%; 6/8 nominally significant |
 | alternative-query draws with a negative slope | 40/40 |
-| query position, Spearman with stratum | +0.0006 (P = .97) |
-| age-free mean relative decline | −30.5% |
+| all usable pairs, mean decline | −33.4%; 8/8 Holm-significant |
+| age-free, mean decline | −29.7% |
+| query position vs stratum | P = .97 |
+| organ-dysfunction strata, Holm-significant slopes | 1/8 (BioLORD) |
+| matched exposure contrast, intervals excluding zero | 0/8 |
 
-Small differences are expected from model-weight revisions on Hugging Face and
-from library versions. Large ones are not; if the primary gradient does not
-reproduce, check matched N from step 1.1 first.
+Small differences can arise from model-weight updates on Hugging Face and from
+library versions. If the primary gradient does not reproduce, check the cell
+sizes from step 1.1 first.
 
 ---
 
 ## Toolchain notes
 
-- **statsmodels and pandas only.** No scikit-learn. Cluster-robust standard
-  errors are CR1 at `stay_id`, and Wald contrasts use explicit contrast vectors
-  rather than named constraints, which fail on bare design arrays.
+- **statsmodels, numpy and pandas.** No scikit-learn. Cluster-robust standard
+  errors are CR1, clustered at patient level.
 - **Object dtype.** Parquet round-trips can leave numeric columns as object
-  dtype, which propagates silently through rolling windows and standardisation
-  and makes a design matrix uncastable. The scripts coerce at load and report
-  having done so.
-- **Charlson.** The mapping is Quan ICD-9-CM/ICD-10, scored per condition with
-  hierarchical exclusions (severe liver supersedes mild, complicated diabetes
-  supersedes uncomplicated, metastatic supersedes malignancy). It was verified
-  against the MIT-LCP `mimic-code` reference implementation with no reference
-  code left uncaptured. The age term of the age-adjusted index is deliberately
-  omitted, because age is a component of this study's exposure.
+  dtype; the scripts coerce at load and report having done so.
+- **Charlson.** Quan ICD-9-CM/ICD-10 mapping, scored per condition with
+  hierarchical exclusions, verified against the MIT-LCP `mimic-code`
+  implementation at commit `25f6c47`. The age term is deliberately omitted
+  because age is a component of the exposure.
