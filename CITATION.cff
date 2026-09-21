@@ -1,0 +1,70 @@
+cff-version: 1.2.0
+title: >-
+  Analysis code for: Clinical Free-Text Retrieval Across an Acute
+  Physiological Derangement Composite in Intensive Care Unit Discharge
+  Summaries
+message: >-
+  If you use this software, please cite both the software and the
+  manuscript it accompanies.
+type: software
+authors:
+  - family-names: Mikkelsen
+    given-names: Yngve
+    orcid: https://orcid.org/0000-0003-1543-3805
+repository-code: https://github.com/yngvemikkelsen/derangement-retrieval-mimic
+license: MIT
+version: 1.1.0
+date-released: "2026-09-21"
+keywords:
+  - clinical natural language processing
+  - information retrieval
+  - text embeddings
+  - subgroup performance
+  - MIMIC-IV
+abstract: >-
+  Code to reproduce a stratified evaluation of whether known-item retrieval
+  performance over ICU discharge summaries varies across strata of an early
+  physiological derangement composite measured independently of the text.
+  Thirteen transformer encoders and a BM25 baseline are evaluated against a
+  single pooled index, with alternative explanations, alternative query draws,
+  an age-free exposure and a lab-only organ-dysfunction exposure. Contains no
+  patient data; MIMIC-IV and MIMIC-IV-Note must be obtained from PhysioNet under
+  their own data use agreements.
+references:
+  - type: article
+    title: >-
+      Clinical Free-Text Retrieval Across an Acute Physiological Derangement
+      Composite in Intensive Care Unit Discharge Summaries: Stratified
+      Evaluation Study
+    authors:
+      - family-names: Mikkelsen
+        given-names: Yngve
+        orcid: https://orcid.org/0000-0003-1543-3805
+    year: 2026
+    notes: Submitted to JMIR AI. Replace with the DOI on acceptance.
+  - type: database
+    title: "MIMIC-IV (version 3.1)"
+    authors:
+      - family-names: Johnson
+        given-names: Alistair
+      - family-names: Bulgarelli
+        given-names: Lucas
+      - family-names: Pollard
+        given-names: Tom
+    year: 2024
+    doi: 10.13026/kpb9-mt58
+  - type: database
+    title: "MIMIC-IV-Note: Deidentified free-text clinical notes (version 2.2)"
+    authors:
+      - family-names: Johnson
+        given-names: Alistair
+      - family-names: Pollard
+        given-names: Tom
+      - family-names: Horng
+        given-names: Steven
+      - family-names: Celi
+        given-names: Leo Anthony
+      - family-names: Mark
+        given-names: Roger
+    year: 2023
+    doi: 10.13026/1n74-ne17
