@@ -1,0 +1,25 @@
+# No data, ever. MIMIC-IV is under a data use agreement that forbids
+# redistribution, and several of these formats can encode note text or stay_id
+# values.
+*.parquet
+*.npy
+*.npz
+*.csv.gz
+data/
+cells/
+*_emb/
+
+# Run outputs
+results/*
+!results/.gitkeep
+!results/README.md
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
