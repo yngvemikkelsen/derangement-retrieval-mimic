@@ -81,7 +81,14 @@ RESULTS = Path(os.environ.get("RESULTS_DIR", str(Path.home() / "paper18x_results
 
 
 def log(m: str) -> None:
-    print(m, flush=True)
+    import time
+    print(f"[{time.strftime('%H:%M:%S')}] {m}", flush=True)
+
+
+def note(attrition: list[str], m: str) -> None:
+    """Record for the final report AND stream it, so a long stage is visibly alive."""
+    attrition.append(m)
+    log(f"  {m}")
 
 
 def _find(root: Path, *names: str) -> Path:
@@ -99,7 +106,7 @@ def load_stay_map(mimic_root: Path, attrition: list[str]) -> pd.DataFrame:
     n_adm = icu["hadm_id"].nunique()
     counts = icu.groupby("hadm_id")["stay_id"].transform("size")
     single = icu[counts == 1].copy()
-    attrition.append(
+    note(attrition, 
         f"C4 stay linkage: {n_adm:,} ICU admissions -> {single['hadm_id'].nunique():,} "
         f"with exactly one ICU stay ({n_adm - single['hadm_id'].nunique():,} multi-stay dropped)")
     return single[["hadm_id", "stay_id"]]
@@ -109,13 +116,14 @@ def load_acuity(path: Path, attrition: list[str]) -> pd.DataFrame:
     ac = pd.read_csv(path, usecols=["stay_id", "acuity_quartile"])
     ac = ac.dropna(subset=["acuity_quartile"])
     ac["acuity_quartile"] = ac["acuity_quartile"].astype(int)
-    attrition.append(f"acuity file: {len(ac):,} stays with a quartile")
+    note(attrition, f"acuity file: {len(ac):,} stays with a quartile")
     return ac
 
 
 def load_discharge(mimic_note: Path, attrition: list[str]) -> pd.DataFrame:
     """As two_site_v2.load_mimic, but RETAINS hadm_id and note_id."""
     f = _find(mimic_note, "discharge.csv.gz", "discharge.csv")
+    log(f"reading {f.name} (~1.5GB gzipped, several minutes) ...")
     df = pd.read_csv(f, usecols=["note_id", "subject_id", "hadm_id", "text", "charttime"],
                      low_memory=False)
     n0 = len(df)
@@ -124,22 +132,23 @@ def load_discharge(mimic_note: Path, attrition: list[str]) -> pd.DataFrame:
     df["hadm_id"] = df["hadm_id"].astype("int64")
     df["patient"] = df["subject_id"].astype(str)
     df["year"] = pd.to_datetime(df["charttime"], errors="coerce").dt.year
-    attrition.append(f"discharge notes: {n0:,} -> {len(df):,} after >= {MIN_CHARS} chars")
+    note(attrition, f"discharge notes: {n0:,} -> {len(df):,} after >= {MIN_CHARS} chars")
     return df[["note_id", "text", "patient", "hadm_id", "year"]]
 
 
 def build_cohort(mimic_note, mimic_root, acuity_path, attrition):
     notes = load_discharge(mimic_note, attrition)
+    log('deduplicating by normalised key ...')
     notes, dropped = tsv2.dedup(notes)
-    attrition.append(f"FIX A dedup: {dropped:,} near-duplicate texts dropped")
+    note(attrition, f"FIX A dedup: {dropped:,} near-duplicate texts dropped")
 
     stay_map = load_stay_map(mimic_root, attrition)
     df = notes.merge(stay_map, on="hadm_id", how="inner")
-    attrition.append(f"after hadm_id -> stay_id join: {len(df):,} notes")
+    note(attrition, f"after hadm_id -> stay_id join: {len(df):,} notes")
 
     ac = load_acuity(acuity_path, attrition)
     df = df.merge(ac, on="stay_id", how="inner")
-    attrition.append(f"after Paper 18 cohort restriction: {len(df):,} notes, "
+    note(attrition, f"after Paper 18 cohort restriction: {len(df):,} notes, "
                      f"{df['stay_id'].nunique():,} stays")
 
     # one note per stay: keep the longest (most content for retrieval)
@@ -147,19 +156,23 @@ def build_cohort(mimic_note, mimic_root, acuity_path, attrition):
     df = (df.sort_values("_len", ascending=False)
             .drop_duplicates(subset=["stay_id"], keep="first")
             .reset_index(drop=True))
-    attrition.append(f"one note per stay (longest kept): {len(df):,}")
+    note(attrition, f"one note per stay (longest kept): {len(df):,}")
     return df
 
 
 def extract(df: pd.DataFrame, attrition: list[str]) -> pd.DataFrame:
     """Query extraction with DF computed ONCE on the pooled cohort (C2)."""
+    log(f"building shared document-frequency pool over {len(df):,} notes ...")
     dfreq = ts.build_df(df["text"].tolist())
-    attrition.append(f"C2 document-frequency pool: {len(df):,} notes (shared, not per-quartile)")
+    note(attrition, f"C2 document-frequency pool: {len(df):,} notes (shared, not per-quartile)")
 
     recs = []
     fail = {q: {"no_query": 0, "gutted": 0, "leak": 0, "ok": 0}
             for q in range(1, N_QUARTILES + 1)}
-    for _, row in df.iterrows():
+    log(f"extracting queries from {len(df):,} notes ...")
+    for _n, (_, row) in enumerate(df.iterrows(), 1):
+        if _n % 500 == 0:
+            log(f"  ... {_n:,}/{len(df):,} notes")
         qz = int(row["acuity_quartile"])
         q = ts.narrative_query(row["text"], dfreq)
         if not q:
@@ -181,7 +194,7 @@ def extract(df: pd.DataFrame, attrition: list[str]) -> pd.DataFrame:
                      "acuity_quartile": qz,
                      "target_len": len(target)})
     tot = {k: sum(v[k] for v in fail.values()) for k in ("no_query", "gutted", "leak", "ok")}
-    attrition.append(f"extraction: {tot['ok']:,} usable  (no query {tot['no_query']:,}; "
+    note(attrition, f"extraction: {tot['ok']:,} usable  (no query {tot['no_query']:,}; "
                      f"gutted {tot['gutted']:,}; residual leak {tot['leak']:,})")
     # DIFFERENTIAL ATTRITION CHECK. build_df rejects sentences appearing in >3 documents,
     # and high-acuity notes carry more templated content, so extraction can fail more often
@@ -191,12 +204,12 @@ def extract(df: pd.DataFrame, attrition: list[str]) -> pd.DataFrame:
     for qz, v in fail.items():
         n = sum(v.values())
         rates[qz] = (v["ok"] / n) if n else float("nan")
-        attrition.append(f"  q{qz}: n={n:,} ok={v['ok']:,} ({rates[qz]:.1%})  "
+        note(attrition, f"  q{qz}: n={n:,} ok={v['ok']:,} ({rates[qz]:.1%})  "
                          f"no_query={v['no_query']:,} gutted={v['gutted']:,} leak={v['leak']:,}")
     good = [r for r in rates.values() if r == r]
     if good:
         spread = max(good) - min(good)
-        attrition.append(
+        note(attrition, 
             f"  -> extraction-rate spread across quartiles = {spread:.1%} "
             + ("*** DIFFERENTIAL ATTRITION — analysed sample differs by acuity; "
                "report this and treat the gradient as partly selection ***"
@@ -215,7 +228,7 @@ def equal_n_cells(rec: pd.DataFrame, rng, attrition, tag: str):
     if len(sizes) < N_QUARTILES:
         raise SystemExit(f"[fatal] only {len(sizes)} quartiles present in {tag}")
     N = int(sizes.min())
-    attrition.append(f"C1 [{tag}] per-quartile availability {dict(sizes)} -> matched N={N:,}")
+    note(attrition, f"C1 [{tag}] per-quartile availability {dict(sizes)} -> matched N={N:,}")
     cells = {}
     for q in range(1, N_QUARTILES + 1):
         sub = rec[rec["acuity_quartile"] == q]
@@ -238,11 +251,11 @@ def length_matched(rec: pd.DataFrame, rng, attrition):
             sub = g[g["acuity_quartile"] == q]
             keep.append(sub.iloc[rng.choice(len(sub), k, replace=False)])
     if not keep:
-        attrition.append("C3 length matching: FAILED — no decile spans all four quartiles")
+        note(attrition, "C3 length matching: FAILED — no decile spans all four quartiles")
         return None
     m = pd.concat(keep, ignore_index=True).drop(columns=["_dec"])
     med = m.groupby("acuity_quartile")["target_len"].median().to_dict()
-    attrition.append(f"C3 length-matched set: {len(m):,} notes; "
+    note(attrition, f"C3 length-matched set: {len(m):,} notes; "
                      f"median target_len by quartile {med}")
     return m
 
@@ -285,6 +298,11 @@ def main() -> None:
     ap.add_argument("--mimic-root", type=Path, default=MIMIC_ROOT)
     ap.add_argument("--acuity", type=Path, default=ACUITY)
     ap.add_argument("--out-dir", type=Path, default=RESULTS)
+    ap.add_argument("--full-cohort", action="store_true",
+                    help="also write an unsubsampled cell set containing every "
+                         "usable pair. Strata are then unequal in size, so this "
+                         "is a sensitivity analysis for the equal-N sampling and "
+                         "seed choice, not a replacement for the matched design.")
     a = ap.parse_args()
     if not (a.preview or a.build):
         raise SystemExit("--preview or --build")
@@ -300,6 +318,26 @@ def main() -> None:
     lm_cells, lm_N = (equal_n_cells(lm, rng, attrition, "length-matched")
                       if lm is not None else (None, 0))
 
+    full_cells = None
+    if a.full_cohort:
+        # Every usable pair, no equal-N subsampling and no length matching. The
+        # matched design remains primary because it is prespecified and controls
+        # length by construction; this exists only to show that the gradient does
+        # not depend on which documents the equal-N draw happened to select.
+        # Mirror equal_n_cells exactly: to_dict("records") carries whatever
+        # columns `rec` actually has, so the cell schema cannot drift from the
+        # matched sets. Naming columns explicitly here is what broke the first
+        # attempt - `rec` has no subject_id column.
+        full_cells = {}
+        for q in range(1, N_QUARTILES + 1):
+            sub = rec[rec["acuity_quartile"] == q]
+            if not len(sub):
+                continue
+            full_cells[f"MIMIC|q{q}"] = sub.to_dict("records")
+        sizes = {k: len(v) for k, v in full_cells.items()}
+        note(attrition, f"C5 full cohort: {sum(sizes.values()):,} pairs, "
+                        f"per-quartile {sizes} (UNEQUAL by design)")
+
     lines = ["Paper 18x — acuity-stratified retrieval cells", "=" * 68, ""]
     lines += ["ATTRITION"] + [f"  {x}" for x in attrition]
     lines += report_lengths(rec)
@@ -309,12 +347,16 @@ def main() -> None:
     report = "\n".join(lines)
     print(report)
 
+
     if a.build:
         a.out_dir.mkdir(parents=True, exist_ok=True)
         (a.out_dir / "paper18x_build_report.txt").write_text(report)
         write(nat_cells, nat_N, a.out_dir / "natural" / "two_site_v2_cells.json")
         if lm_cells:
             write(lm_cells, lm_N, a.out_dir / "length_matched" / "two_site_v2_cells.json")
+        if full_cells:
+            write(full_cells, max(len(v) for v in full_cells.values()),
+                  a.out_dir / "full_cohort" / "two_site_v2_cells.json")
         rec.drop(columns=["query", "target"]).to_csv(
             a.out_dir / "paper18x_record_index.csv", index=False)
         log(f"[wrote] {a.out_dir/'paper18x_record_index.csv'} "
