@@ -15,3 +15,4 @@ transformers>=4.35
 
 # Optional
 matplotlib>=3.7        # figures
+pillow>=9.0            # figures: flattening transparency before saving

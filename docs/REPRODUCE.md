@@ -201,38 +201,55 @@ python paper20_gradient_test.py --results $WORK/cells/natural        --chunk
 
 ### 3.5 Revision analyses (requested at review)
 
-Each reads the same embedding cache. Run `--help` on any of them for the exact
-arguments.
+Each stage 3 script here reads the same embedding cache. All of them take
+`--help` for the exact arguments and `--selftest` to run their fixtures against
+planted and null effects before touching real data.
 
 ```bash
-# OASIS: compute the score and build its quartile cells (stage 1), then rerun
+# OASIS: compute the score, then build its cells, encode them and rerun the
+# primary analysis exactly as for the composite
 cd ../stage1_cohort
-python paper20_oasis_strata.py --mimic-root $MIMIC --acuity $ACUITY \
-       --out-dir $WORK/oasis
+python paper20_oasis_strata.py --build --mimic-root $MIMIC \
+  --acuity $WORK/acuity.csv --out-dir $WORK/oasis
+python paper18x_acuity_build.py --build \
+  --mimic-note $NOTE --mimic-root $MIMIC \
+  --acuity $WORK/oasis/paper18_acuity_oasis.csv --out-dir $WORK/cells_oasis
+cd ../stage2_retrieval
+for SET in length_matched natural; do
+  RESULTS_DIR=$WORK/cells_oasis/$SET \
+    python two_site_v2_analyze_p18x.py --run --bm25 --chunk
+done
 cd ../stage3_analysis
-python paper20_pooled_v2.py --results $WORK/oasis/length_matched --chunk
+python paper20_pooled_v2.py --results $WORK/cells_oasis/length_matched --chunk
 
 # shape of the association: categorical quartiles, 2-df linearity test,
-# Q1-versus-rest, per-quartile means and CIs
-python paper20_b3h3_linearity.py --results $WORK/cells/length_matched
-python paper20_b3h3_linearity.py --results $WORK/oasis/length_matched
+# lowest-versus-rest contrast, per-quartile means and CIs
+python paper20_b3h3_linearity.py --results $WORK/cells/length_matched \
+  --label composite
+python paper20_b3h3_linearity.py --results $WORK/cells_oasis/length_matched \
+  --label OASIS
 
 # untruncated target rank on the log scale
-python paper20_b4_log_target_rank.py --results $WORK/cells/length_matched
-python paper20_b4_log_target_rank.py --results $WORK/oasis/length_matched
+python paper20_b4_log_target_rank.py --results $WORK/cells/length_matched \
+  --label composite
+python paper20_b4_log_target_rank.py --results $WORK/cells_oasis/length_matched \
+  --label OASIS
 
 # vital status, outcome adjustment, pooled model, hit@10, query length
-python paper20_reviewer_analyses.py --results $WORK/cells/length_matched
+# (needs the raw tables for death, disposition and the two length-of-stay terms)
+python paper20_reviewer_analyses.py --results $WORK/cells/length_matched \
+  --mimic-root $MIMIC --label composite
 
 # symmetric query/document instruction settings
-python paper20_b7_symmetric_prefix.py --results $WORK/cells/length_matched
+python paper20_b7_symmetric_prefix.py --results $WORK/cells/length_matched \
+  --label composite
 
 # BM25 representation: whole document against word windows, two IDF
 # conventions and two window sizes. Three contrasts per exposure, six in all.
 python paper20_g2_bm25_representation.py --results $WORK/cells/length_matched \
-       --label composite
-python paper20_g2_bm25_representation.py --results $WORK/oasis/length_matched \
-       --label OASIS
+  --label composite
+python paper20_g2_bm25_representation.py --results $WORK/cells_oasis/length_matched \
+  --label OASIS
 ```
 
 Figure 3 of the revision is drawn by `../figures/make_figure3.py` from the

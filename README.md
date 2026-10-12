@@ -40,7 +40,7 @@ alternative query draws, an analysis of all 3,896 usable pairs, and an age-free
 exposure. Under a lab-only organ-dysfunction stratification the slopes were
 directionally similar but less consistently supported, and a matched comparison
 on identical records could not distinguish the two exposures, so which dimension
-of patient state the association tracks remains open.
+of derangement the association tracks remains open.
 
 The revision requested at review repeated the primary analysis under the Oxford
 Acute Severity of Illness Score (OASIS), computed from the MIMIC-Code reference

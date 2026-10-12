@@ -56,6 +56,18 @@ retrained.
 
 ### Fixed
 
+- `requirements.txt` did not declare Pillow, which `make_figures.py` and
+  `make_figure3.py` both import.
+- `README.md` retained one instance of the neutral exposure wording in the
+  summary of findings.
+- `docs/REPRODUCE.md` section 3.5, as first written, referred to an
+  undefined `$ACUITY`, omitted `--build` from the OASIS command, went straight
+  from computing OASIS to the pooled analysis without building and encoding its
+  cells, and omitted `--mimic-root` from `paper20_reviewer_analyses.py`, which
+  needs the raw tables for vital status, discharge disposition and the two
+  length-of-stay terms. The block now follows the sequence the OASIS script
+  itself prints, uses the three exported paths and passes `--label` so output
+  filenames distinguish the two exposures.
 - `requirements.txt`, `README.md` and `docs/REPRODUCE.md` claimed that modelling
   used statsmodels. No script imports it. The cluster-robust covariance, Holm
   correction, paired bootstrap, log-rank and logistic fits are implemented
