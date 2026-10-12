@@ -58,6 +58,11 @@ retrained.
 
 - `requirements.txt` did not declare Pillow, which `make_figures.py` and
   `make_figure3.py` both import.
+- `code/figures/make_figure3.py` as first added was the working copy used to
+  produce the figure: it wrote three files under hardcoded relative paths and
+  failed with `FileNotFoundError` outside that working tree. It now takes
+  `--out-dir` like `make_figures.py` and writes a single `Figure3.png` at
+  300 dpi, flattened to RGB.
 - `README.md` retained one instance of the neutral exposure wording in the
   summary of findings.
 - `docs/REPRODUCE.md` section 3.5, as first written, referred to an

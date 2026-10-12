@@ -1,13 +1,26 @@
 # -*- coding: utf-8 -*-
-"""Figure 3 - per-stratum mean RR@10 with 95% CIs, both exposures, 8 panels.
+"""Paper 20 -- manuscript Figure 3.
+
+Per-stratum mean RR@10 with 95% CIs, both exposures, eight panels. Writes
+Figure3.png at 300 dpi into --out-dir, RGB with transparency flattened.
 
 Values are the per-quartile means and patient-clustered CR1 intervals printed by
 paper20_b3h3_linearity.py for the composite (paper18x_results/length_matched)
 and for OASIS (paper18x_results_oasis/length_matched).
 """
+import argparse
+from pathlib import Path
+
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from PIL import Image
+
+_ap = argparse.ArgumentParser(description=__doc__ and __doc__.splitlines()[0])
+_ap.add_argument("--out-dir", type=Path, required=True)
+OUT = _ap.parse_args().out_dir
+OUT.mkdir(parents=True, exist_ok=True)
+DPI = 300
 
 MODELS = ["BGE", "GTE", "E5", "Nomic", "MPNet", "MiniLM", "MedCPT", "BioLORD"]
 
@@ -75,21 +88,17 @@ def draw():
     return fig
 
 if __name__ == "__main__":
-    for dpi, out in ((200, "fig/fig3_embed.png"), (120, "fig/fig3_upload.png"),
-                     (300, "fig/fig3_300.png")):
-        f = draw()
-        f.savefig(out, dpi=dpi)
-        plt.close(f)
-        # Flatten any alpha channel onto white. JMIR states that figures must
-        # not contain transparent sections because its system renders them
-        # incorrectly, and make_figures.py does the same for the other four.
-        from PIL import Image
-        im = Image.open(out)
-        if im.mode in ("RGBA", "LA", "P"):
-            rgba = im.convert("RGBA")
-            bg = Image.new("RGB", rgba.size, (255, 255, 255))
-            bg.paste(rgba, mask=rgba.getchannel("A"))
-            bg.save(out, dpi=(dpi, dpi))
-    from PIL import Image
-    for p in ("fig/fig3_embed.png", "fig/fig3_upload.png"):
-        print(p, Image.open(p).size)
+    out = OUT / "Figure3.png"
+    f = draw()
+    f.savefig(out, dpi=DPI)
+    plt.close(f)
+    # Flatten any alpha channel onto white: JMIR states that figures must not
+    # contain transparent sections because its system renders them incorrectly,
+    # and make_figures.py does the same for the other four.
+    im = Image.open(out)
+    if im.mode in ("RGBA", "LA", "P"):
+        rgba = im.convert("RGBA")
+        bg = Image.new("RGB", rgba.size, (255, 255, 255))
+        bg.paste(rgba, mask=rgba.getchannel("A"))
+        bg.save(out, dpi=(DPI, DPI))
+    print(f"wrote {out}  {Image.open(out).size}  {Image.open(out).mode}")
