@@ -63,6 +63,15 @@ retrained.
   failed with `FileNotFoundError` outside that working tree. It now takes
   `--out-dir` like `make_figures.py` and writes a single `Figure3.png` at
   300 dpi, flattened to RGB.
+- `figures/README.md` gave a `make_figure3.py` command without the now-required
+  `--out-dir`, so it failed, and named an output file the script no longer
+  writes. It also now states that the deposited PNGs are not byte-reproducible
+  across matplotlib versions, because a tight bounding box makes the canvas
+  size depend on font metrics.
+- `code/figures/README.md` still described four manuscript figures, numbered the
+  dense-versus-lexical and attenuation figures 3 and 4 rather than 4 and 5, and
+  did not mention `make_figure3.py`.
+- The repository layout in `README.md` named only one figure generator.
 - `README.md` retained one instance of the neutral exposure wording in the
   summary of findings.
 - `docs/REPRODUCE.md` section 3.5, as first written, referred to an

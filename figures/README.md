@@ -27,5 +27,11 @@ Regenerate with:
 
 ```bash
 python ../code/figures/make_figures.py --out-dir .
-python ../code/figures/make_figure3.py          # writes fig/fig3_300.png
+python ../code/figures/make_figure3.py --out-dir .
 ```
+
+Both generators are deterministic, but the exact pixel dimensions depend on
+the matplotlib version and the available fonts, because the figures are saved
+with a tight bounding box. Regenerating on a different stack reproduces the
+plots and their values while the canvas may differ by a few pixels; the files
+deposited here are the ones embedded in the manuscript.

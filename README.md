@@ -67,7 +67,8 @@ code/
   stage3_analysis/    the analyses reported in the manuscript
   exploratory/        post-hoc analyses NOT reported in the manuscript,
                       retained for transparency (see the note below)
-  figures/            make_figures.py, which draws the manuscript figures
+  figures/            make_figures.py and make_figure3.py, which draw the
+                      manuscript figures
 docs/                 reproduction instructions, data access, changelog
 results/              run outputs are written here (git-ignored)
 figures/              the five manuscript figures (PNG, 300 dpi)
