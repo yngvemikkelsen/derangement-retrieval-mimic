@@ -1,6 +1,6 @@
-"""Paper 20 -- manuscript figures 1-4.
+"""Paper 20 -- manuscript figures 1, 2, 4 and 5.
 
-Draws the four figures exactly as embedded in the manuscript, at 300 dpi, as
+Draws four of the five manuscript figures exactly as embedded, at 300 dpi, as
 RGB PNG (JMIR requires PNG; transparency is flattened onto white so it cannot
 render as black in production).
 
@@ -106,7 +106,7 @@ for ax,(title,d,b,(df,lo,hi)) in zip(axs,panels):
 axs[0].set_xlabel("Slope"); axs[1].set_xlabel("Relative slope")
 axs[0].set_xlim(-0.020,0.018); axs[0].set_xticks([-0.02,-0.01,0,0.01])
 axs[1].set_xlim(-0.135,0.012); axs[1].set_xticks([-0.12,-0.08,-0.04,0])
-plt.tight_layout(); plt.savefig(OUT/"Figure3.png",dpi=DPI,bbox_inches="tight"); plt.close()
+plt.tight_layout(); plt.savefig(OUT/"Figure4.png",dpi=DPI,bbox_inches="tight"); plt.close()
 
 # ---------------- Figure 4: per-model attenuation (dot plot) ----------------
 # Joint row and the six clinical/process covariates plus target length:
@@ -143,14 +143,14 @@ ax.text(47.5,len(rows)-0.35,"mean",ha="right",va="bottom",fontsize=7.6,style="it
 from matplotlib.lines import Line2D
 h=[Line2D([],[],marker=mk[k],ls="",mfc="white",mec="black",label=k) for k in mk]+[Line2D([],[],color="black",lw=2,label="Mean across models")]
 ax.legend(handles=h,loc="lower right",bbox_to_anchor=(0.88,0.0),fontsize=7.2,frameon=False)
-plt.savefig(OUT/"Figure4.png",dpi=DPI,bbox_inches="tight"); plt.close()
+plt.savefig(OUT/"Figure5.png",dpi=DPI,bbox_inches="tight"); plt.close()
 
 # Flatten to RGB on white (JMIR production renders transparency unpredictably).
-for _n in range(1, 5):
+for _n in (1, 2, 4, 5):
     _p = OUT / f"Figure{_n}.png"
     _im = Image.open(_p)
     if _im.mode == "RGBA":
         _bg = Image.new("RGB", _im.size, (255, 255, 255))
         _bg.paste(_im, mask=_im.getchannel("A"))
         _bg.save(_p, dpi=(DPI, DPI))
-print(f"wrote Figure1-4.png to {OUT}")
+print(f"wrote Figure1, 2, 4 and 5 to {OUT}; Figure3 is drawn by make_figure3.py")

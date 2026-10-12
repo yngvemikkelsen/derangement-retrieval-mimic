@@ -75,10 +75,21 @@ def draw():
     return fig
 
 if __name__ == "__main__":
-    for dpi, out in ((200, "fig/fig3_embed.png"), (120, "fig/fig3_upload.png")):
+    for dpi, out in ((200, "fig/fig3_embed.png"), (120, "fig/fig3_upload.png"),
+                     (300, "fig/fig3_300.png")):
         f = draw()
         f.savefig(out, dpi=dpi)
         plt.close(f)
+        # Flatten any alpha channel onto white. JMIR states that figures must
+        # not contain transparent sections because its system renders them
+        # incorrectly, and make_figures.py does the same for the other four.
+        from PIL import Image
+        im = Image.open(out)
+        if im.mode in ("RGBA", "LA", "P"):
+            rgba = im.convert("RGBA")
+            bg = Image.new("RGB", rgba.size, (255, 255, 255))
+            bg.paste(rgba, mask=rgba.getchannel("A"))
+            bg.save(out, dpi=(dpi, dpi))
     from PIL import Image
     for p in ("fig/fig3_embed.png", "fig/fig3_upload.png"):
         print(p, Image.open(p).size)

@@ -41,6 +41,13 @@ retrained.
   with 95% intervals for both exposures. Its values are transcribed from the
   printed output of `paper20_b3h3_linearity.py`, not read from a result file;
   the docstring names the two runs.
+- `figures/Figure3.png` — the new figure, at 300 dpi to match the others.
+  `make_figure3.py` now flattens any alpha channel onto white before
+  writing, as `make_figures.py` already did: JMIR states that figures must
+  not contain transparent sections because its system renders them
+  incorrectly, and this was the only figure saved as RGBA.
+- `figures/README.md` — what each figure shows and which script draws it. The
+  file was referenced from `code/README.md` but did not exist.
 - `code/exploratory/paper20_idf_covariate.py` — mean query inverse document
   frequency as a covariate. Reported nowhere in the manuscript: the statistic
   cannot separate query selection from documentation, because query vocabulary
@@ -70,6 +77,12 @@ retrained.
 - `docs/REPRODUCE.md` gains section 3.5, the revision analyses with their
   commands. The former 3.5 to 3.9 are renumbered 3.6 to 3.10, and the three
   cross-references in the stage 1 and stage 2 text are updated to match.
+- **Figure numbering.** The revision inserts a new Figure 3, so the figures
+  previously deposited as `Figure3.png` and `Figure4.png` are now
+  `Figure4.png` and `Figure5.png`; their content is unchanged and still matches
+  the manuscript byte for byte. `code/figures/make_figures.py` writes the new
+  names, and no longer writes `Figure3.png`, which would otherwise overwrite
+  the new figure on the next run.
 
 ## 1.1.0 — 2026-09-21
 
