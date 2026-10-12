@@ -97,6 +97,9 @@ retrained.
 
 ### Changed
 
+- `README.md` carries the Zenodo concept-DOI badge and a note under
+  Citing distinguishing the concept DOI, which tracks the latest release, from
+  the version DOI of release 1.2.0, which is what the manuscript cites.
 - `README.md` summarises the OASIS replication and the other analyses added at
   revision.
 - `code/README.md` lists the new scripts.
