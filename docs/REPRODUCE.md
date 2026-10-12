@@ -146,7 +146,9 @@ applied to every window, not only the first (see CHANGELOG, 1.1.0).
 | pubmedbert | microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext | MLM control | CLS | none | none |
 | scibert | allenai/scibert_scivocab_uncased | MLM control | CLS | none | none |
 
-Revisions are not pinned; weights download from Hugging Face on first use.
+Revisions are pinned: the resolved commit for every checkpoint is listed per
+model in Multimedia Appendix 1 of the manuscript. Weights download from
+Hugging Face on first use.
 `medicalai/ClinicalBERT` is a different model from
 `emilyalsentzer/Bio_ClinicalBERT`. A benign `KeyError` on site × genre may
 appear at the end of a run, after every output needed downstream has been
@@ -197,7 +199,46 @@ python paper20_gradient_test.py --results $WORK/cells/length_matched --chunk
 python paper20_gradient_test.py --results $WORK/cells/natural        --chunk
 ```
 
-### 3.5 Alternative explanations
+### 3.5 Revision analyses (requested at review)
+
+Each reads the same embedding cache. Run `--help` on any of them for the exact
+arguments.
+
+```bash
+# OASIS: compute the score and build its quartile cells (stage 1), then rerun
+cd ../stage1_cohort
+python paper20_oasis_strata.py --mimic-root $MIMIC --acuity $ACUITY \
+       --out-dir $WORK/oasis
+cd ../stage3_analysis
+python paper20_pooled_v2.py --results $WORK/oasis/length_matched --chunk
+
+# shape of the association: categorical quartiles, 2-df linearity test,
+# Q1-versus-rest, per-quartile means and CIs
+python paper20_b3h3_linearity.py --results $WORK/cells/length_matched
+python paper20_b3h3_linearity.py --results $WORK/oasis/length_matched
+
+# untruncated target rank on the log scale
+python paper20_b4_log_target_rank.py --results $WORK/cells/length_matched
+python paper20_b4_log_target_rank.py --results $WORK/oasis/length_matched
+
+# vital status, outcome adjustment, pooled model, hit@10, query length
+python paper20_reviewer_analyses.py --results $WORK/cells/length_matched
+
+# symmetric query/document instruction settings
+python paper20_b7_symmetric_prefix.py --results $WORK/cells/length_matched
+
+# BM25 representation: whole document against word windows, two IDF
+# conventions and two window sizes. Three contrasts per exposure, six in all.
+python paper20_g2_bm25_representation.py --results $WORK/cells/length_matched \
+       --label composite
+python paper20_g2_bm25_representation.py --results $WORK/oasis/length_matched \
+       --label OASIS
+```
+
+Figure 3 of the revision is drawn by `../figures/make_figure3.py` from the
+per-quartile values printed by `paper20_b3h3_linearity.py`.
+
+### 3.6 Alternative explanations
 
 ```bash
 python paper20_complexity_test.py --results $WORK/cells/length_matched --chunk \
@@ -290,8 +331,11 @@ sizes from step 1.1 first.
 
 ## Toolchain notes
 
-- **statsmodels, numpy and pandas.** No scikit-learn. Cluster-robust standard
-  errors are CR1, clustered at patient level.
+- **numpy and pandas only in the inferential path.** No scikit-learn and no
+  statistical-modelling package: the cluster-robust covariance, Holm correction,
+  paired bootstrap, log-rank and logistic fits are implemented directly.
+  Cluster-robust standard errors are CR1, clustered at patient level. scipy
+  supplies distribution functions and rank correlations.
 - **Object dtype.** Parquet round-trips can leave numeric columns as object
   dtype; the scripts coerce at load and report having done so.
 - **Charlson.** Quan ICD-9-CM/ICD-10 mapping, scored per condition with

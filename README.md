@@ -42,6 +42,20 @@ directionally similar but less consistently supported, and a matched comparison
 on identical records could not distinguish the two exposures, so which dimension
 of patient state the association tracks remains open.
 
+The revision requested at review repeated the primary analysis under the Oxford
+Acute Severity of Illness Score (OASIS), computed from the MIMIC-Code reference
+definition pinned at release v3.0.1. Under OASIS quartiles the mean relative
+decline was 38.7% against the composite's 37.2%, with all eight retrievers
+Holm-significant under both exposures and agreement to within 0.002
+reciprocal-rank units. Because OASIS shares six of its ten inputs with the
+composite, this is convergent validation under an externally defined score
+rather than a component-isolation analysis; the age-free reconstruction remains
+the analysis bearing on the age component. The revision also added a
+categorical-quartile model with a test for departure from linearity, a
+regression on the log of the untruncated target rank, a hit@10 logistic model, a
+single pooled model across retrievers, retrieval by vital status, a windowed
+BM25 representation check and a symmetric query-instruction check.
+
 ## Repository layout
 
 ```
@@ -56,7 +70,7 @@ code/
   figures/            make_figures.py, which draws the manuscript figures
 docs/                 reproduction instructions, data access, changelog
 results/              run outputs are written here (git-ignored)
-figures/              the four manuscript figures (PNG, 300 dpi)
+figures/              the five manuscript figures (PNG, 300 dpi)
 ```
 
 ## Reproducing the analysis
@@ -86,11 +100,20 @@ own denominator — and the total-activity variable it rests on is largely
 downstream of the exposure. It is included because it was run, not because it
 supports anything.
 
+It also contains `paper20_idf_covariate.py`, which adds mean query inverse
+document frequency to the covariate model. That statistic is reported nowhere in
+the manuscript: query vocabulary is inherited from the source document, so it
+cannot separate query selection from documentation, and the eight-covariate run
+including it was performed and rejected rather than reported. Retained for the
+same reason.
+
 ## Environment
 
 Python 3.9 or later. See [`requirements.txt`](requirements.txt). No
-scikit-learn: all modelling uses statsmodels, so cluster-robust standard errors
-and Wald contrasts are explicit rather than wrapped.
+scikit-learn and no statistical-modelling package in the inferential path: the
+cluster-robust covariance, Holm correction, paired bootstrap, log-rank and
+logistic fits are implemented directly on numpy and pandas, so every estimator
+is explicit rather than wrapped.
 
 Stage 2 was run on Apple Silicon with MPS. Any CUDA device works; CPU-only will
 be slow but correct.
@@ -103,8 +126,11 @@ be slow but correct.
   cannot be confused.
 - Random seeds are fixed at 42 throughout.
 - Model checkpoints are identified by their Hugging Face names, listed in
-  `docs/REPRODUCE.md`. Revisions were not pinned, so upstream model updates can
-  cause small differences.
+  `docs/REPRODUCE.md`. Revisions are pinned: the resolved commit for every
+  checkpoint is given per model in Multimedia Appendix 1 of the manuscript. For
+  four of the five masked language model controls the local cache retained a
+  second revision, so for those four the revision used cannot be established
+  from the cache alone; they serve as a performance floor, not as estimates.
 - `code/stage1_cohort/paper20_provenance_checks.py` recomputes every cohort and
   exposure count from the raw release files and prints it beside the reported
   value.

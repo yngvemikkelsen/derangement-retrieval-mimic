@@ -14,6 +14,7 @@ asks, why it is constructed the way it is, and what would falsify it.
 | `paper20_acuity_validation.py` | characterises the exposure against mortality, length of stay and a laboratory partial-SOFA sub-score; writes the age-free stratification |
 | `paper20_sofa_strata.py` | lab-only organ-dysfunction strata (coagulation, liver, renal SOFA components), an alternative exposure |
 | `paper20_provenance_checks.py` | recomputes the source-cohort and exposure counts from the raw release |
+| `paper20_oasis_strata.py` | computes the Oxford Acute Severity of Illness Score from the raw tables against the MIMIC-Code reference definition and builds OASIS quartile cells |
 
 ## stage2_retrieval
 
@@ -36,14 +37,26 @@ asks, why it is constructed the way it is, and what would falsify it.
 | `paper20_final_robustness.py` | joint seven-covariate conditioning, Charlson diagnostics, query-window eligibility by stratum |
 | `paper20_sofa_continuous.py` | organ-dysfunction slopes on quartile and on score value |
 | `paper20_exposure_contrast.py` | both exposures on identical records, paired bootstrap for the slope difference |
+| `paper20_b3h3_linearity.py` | categorical-quartile model, 2-df Wald test of departure from linearity, Q1-versus-rest contrast, per-quartile means and CIs |
+| `paper20_b4_log_target_rank.py` | regression on the log of the untruncated target rank, ordinal and categorical, with the rank ratio per stratum |
+| `paper20_reviewer_analyses.py` | retrieval by vital status, outcome adjustment, the pooled model across retrievers, hit@10 logistic, and query length for the primary set |
+| `paper20_b7_symmetric_prefix.py` | rescoring the three retrievers with documented query/document instructions under symmetric settings |
+| `paper20_g2_bm25_representation.py` | BM25 scored three ways on the same index — whole document, word windows with window-level IDF, word windows with document-level IDF — at two window sizes |
 
 ## figures
 
-`make_figures.py` draws the four manuscript figures; see `figures/README.md`.
+`make_figures.py` draws the figures of the submitted version; see
+`figures/README.md`. `make_figure3.py` draws the new Figure 3 of the revision
+(per-stratum means with CIs under both exposures). Its per-quartile values are
+transcribed from the printed output of `paper20_b3h3_linearity.py` rather than
+read from a result file; the docstring names the two runs they come from.
 
 ## exploratory
 
-Post-hoc, **not reported in the manuscript**. See the repository README for why.
+Post-hoc, **not reported in the manuscript**: the episode-volume and
+narrative-compression analyses, and `paper20_idf_covariate.py` (mean query
+inverse document frequency as a covariate, performed and rejected). See the
+repository README for why.
 
 ## Conventions
 

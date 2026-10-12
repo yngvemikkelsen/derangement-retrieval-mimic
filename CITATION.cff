@@ -13,8 +13,8 @@ authors:
     orcid: https://orcid.org/0000-0003-1543-3805
 repository-code: https://github.com/yngvemikkelsen/derangement-retrieval-mimic
 license: MIT
-version: 1.1.0
-date-released: "2026-09-21"
+version: 1.2.0
+date-released: "2026-10-13"
 keywords:
   - clinical natural language processing
   - information retrieval
@@ -27,7 +27,9 @@ abstract: >-
   physiological derangement composite measured independently of the text.
   Thirteen transformer encoders and a BM25 baseline are evaluated against a
   single pooled index, with alternative explanations, alternative query draws,
-  an age-free exposure and a lab-only organ-dysfunction exposure. Contains no
+  an age-free exposure, a lab-only organ-dysfunction exposure and, added at
+  revision, a replication under the Oxford Acute Severity of Illness Score.
+  Contains no
   patient data; MIMIC-IV and MIMIC-IV-Note must be obtained from PhysioNet under
   their own data use agreements.
 references:
@@ -41,7 +43,9 @@ references:
         given-names: Yngve
         orcid: https://orcid.org/0000-0003-1543-3805
     year: 2026
-    notes: Submitted to JMIR AI. Replace with the DOI on acceptance.
+    notes: >-
+      Under revision at JMIR AI (ms #112610). Replace with the DOI on
+      acceptance.
   - type: database
     title: "MIMIC-IV (version 3.1)"
     authors:

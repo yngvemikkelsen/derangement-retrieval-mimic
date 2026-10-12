@@ -1,9 +1,11 @@
-# Core analysis. No scikit-learn: modelling is statsmodels throughout so that
-# cluster-robust covariance and Wald contrasts are explicit.
+# Core analysis. No scikit-learn and no statistical-modelling package in the
+# inferential path: the cluster-robust covariance, Holm correction, paired
+# bootstrap, log-rank and logistic fits are implemented directly on numpy and
+# pandas, so every estimator is explicit rather than wrapped. scipy supplies
+# distribution functions and rank correlations only.
 numpy>=1.24
 pandas>=2.0
 scipy>=1.10
-statsmodels>=0.14
 pyarrow>=12.0          # parquet
 rank-bm25>=0.2.2       # lexical baseline
 
