@@ -72,7 +72,7 @@ Roughly ten minutes, most of it reading and deduplicating the discharge
 summaries. Writes `length_matched/` (primary, coarsened exact matching on
 target-length decile) and `natural/` (unmatched sensitivity). Add
 `--full-cohort` to also write `full_cohort/`, all usable pairs without
-subsampling or matching (step 3.7).
+subsampling or matching (step 3.8).
 
 **Check before proceeding.** 739 per stratum (length-matched), 743 (unmatched),
 and 3,896 usable query-target pairs from 4,078 linked summaries in the published
@@ -87,7 +87,7 @@ python paper20_acuity_validation.py \
 
 Hospital and ICU mortality, ICU length of stay, discrimination for hospital
 mortality, and a partial SOFA sub-score from platelets and creatinine (available
-in 98.5% of stays). Also writes the age-free stratification used in step 3.8.
+in 98.5% of stays). Also writes the age-free stratification used in step 3.9.
 Add `--skip-labs` for the mortality and length-of-stay endpoints alone.
 
 ### 1.3 Organ-dysfunction strata (alternative exposure)
@@ -121,8 +121,8 @@ for SET in length_matched natural full_cohort; do
 done
 ```
 
-Repeat with `RESULTS_DIR` pointing at the age-free cell set (step 3.8) and at
-`$WORK/cells_sofa3/length_matched` (step 3.9). A few hours per cell set on Apple
+Repeat with `RESULTS_DIR` pointing at the age-free cell set (step 3.9) and at
+`$WORK/cells_sofa3/length_matched` (step 3.10). A few hours per cell set on Apple
 Silicon with MPS; this is the only step needing an accelerator. Writes an
 embedding cache under `<set>/two_site_v2_emb/` that every stage 3 script reads.
 
@@ -257,7 +257,7 @@ the complete-case sample, and reports Charlson diagnostics and query-window
 eligibility. Leave `--compression` unset: it is the post-hoc analysis described
 in the README and is not reported.
 
-### 3.6 Alternative query draws
+### 3.7 Alternative query draws
 
 ```bash
 python paper20_query_sensitivity.py --build --draws 5 \
@@ -273,7 +273,7 @@ pooled candidate index is identical across draws. 664 documents per stratum is
 the largest common cell size after its own exclusions. The build step checks
 that rebuilt cells match any existing embedding cache.
 
-### 3.7 All usable pairs
+### 3.8 All usable pairs
 
 ```bash
 python paper20_pooled_v2.py --results $WORK/cells/full_cohort --chunk
@@ -282,12 +282,12 @@ python paper20_pooled_v2.py --results $WORK/cells/full_cohort --chunk
 All 3,896 usable pairs in one index, without subsampling or length matching
 (cells from step 1.1 with `--full-cohort`).
 
-### 3.8 Age-free exposure
+### 3.9 Age-free exposure
 
 Rerun step 1.1 with `--acuity` pointing at the age-free stratification from
 step 1.2, into a separate directory; encode it (stage 2); run step 3.1 on it.
 
-### 3.9 Organ-dysfunction exposure
+### 3.10 Organ-dysfunction exposure
 
 ```bash
 python paper20_pooled_v2.py --results $WORK/cells_sofa3/length_matched --chunk

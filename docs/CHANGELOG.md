@@ -68,7 +68,8 @@ retrained.
   revision.
 - `code/README.md` lists the new scripts.
 - `docs/REPRODUCE.md` gains section 3.5, the revision analyses with their
-  commands; the former 3.5 is renumbered 3.6.
+  commands. The former 3.5 to 3.9 are renumbered 3.6 to 3.10, and the three
+  cross-references in the stage 1 and stage 2 text are updated to match.
 
 ## 1.1.0 — 2026-09-21
 
