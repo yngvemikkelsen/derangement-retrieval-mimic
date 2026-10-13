@@ -1,7 +1,8 @@
 # Figures
 
 `make_figures.py` draws Figures 1, 2, 4 and 5 as RGB PNG at 300 dpi;
-`make_figure3.py` draws Figure 3, which was added at revision. Both take
+`make_figure3.py` draws Figure 3, which was added at revision and gained its
+ninth, BM25 panel at re-revision. Both take
 `--out-dir` and flatten transparency onto white.
 
 ```bash
@@ -13,7 +14,7 @@ python make_figure3.py  --out-dir ../../figures
 |---|---|---|
 | 1 | cohort construction | `paper18x_acuity_build.py` build log; source-cohort count from the acuity file; record count from `paper20_provenance_checks.py` |
 | 2 | per-model derangement slope, forest plot | `paper20_pooled_v2.py`, length-matched, chunked |
-| 3 | per-stratum means with CIs under both exposures, eight panels | `paper20_b3h3_linearity.py`, run on the composite and on the OASIS cells |
+| 3 | per-stratum means with CIs under both exposures, nine panels: eight dense retrievers and BM25 | dense panels from `paper20_b3h3_linearity.py`, run on the composite and on the OASIS cells; BM25 panel from `paper20_b3d_bm25_perquartile_ci.py`, run on both |
 | 4 | dense versus lexical on absolute and relative scales | `paper20_dense_vs_bm25_ci.py` |
 | 5 | attenuation by candidate explanation, per model | `paper20_final_robustness.py` blocks A and A2; `paper20_dispersion.py` |
 

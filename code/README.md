@@ -41,15 +41,18 @@ asks, why it is constructed the way it is, and what would falsify it.
 | `paper20_b4_log_target_rank.py` | regression on the log of the untruncated target rank, ordinal and categorical, with the rank ratio per stratum |
 | `paper20_reviewer_analyses.py` | retrieval by vital status, outcome adjustment, the pooled model across retrievers, hit@10 logistic, and query length for the primary set |
 | `paper20_b7_symmetric_prefix.py` | rescoring the three retrievers with documented query/document instructions under symmetric settings |
+| `paper20_b3d_bm25_perquartile_ci.py` | BM25 per-stratum mean RR@10 with patient-clustered CR1 intervals and the CR1 slope, for the ninth panel of Figure 3 |
 | `paper20_g2_bm25_representation.py` | BM25 scored three ways on the same index — whole document, word windows with window-level IDF, word windows with document-level IDF — at two window sizes |
 
 ## figures
 
 `make_figures.py` draws the figures of the submitted version; see
 `figures/README.md`. `make_figure3.py` draws the new Figure 3 of the revision
-(per-stratum means with CIs under both exposures). Its per-quartile values are
-transcribed from the printed output of `paper20_b3h3_linearity.py` rather than
-read from a result file; the docstring names the two runs they come from.
+(per-stratum means with CIs under both exposures, nine panels). Its per-quartile
+values are transcribed from the printed output of `paper20_b3h3_linearity.py`
+for the eight dense panels and of `paper20_b3d_bm25_perquartile_ci.py` for the
+BM25 panel, rather than read from a result file; the docstring names the runs
+they come from.
 
 ## exploratory
 

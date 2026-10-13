@@ -1,5 +1,47 @@
 # Changelog
 
+## 1.3.0 — 2026-10-13
+
+Release accompanying the re-revision of the manuscript for JMIR AI
+(ms #112610). One reviewer request was answered more completely than in 1.2.0;
+no previously reported result changed.
+
+### Added
+
+- `code/stage3_analysis/paper20_b3d_bm25_perquartile_ci.py` — BM25's per-stratum
+  mean RR@10 with patient-clustered CR1 intervals, and the CR1 slope. Reviewer
+  B major comment 3 asked for per-quartile means with confidence intervals "for
+  each model" and quoted the BM25 series alongside the dense means. Tables 1
+  and 3 already carried BM25's means, but nothing in the pipeline emitted
+  intervals for them: `paper20_b3h3_linearity.py` covers the eight dense
+  retrievers only, and `paper20_dense_vs_bm25_ci.py` reports BM25's slope and
+  its paired contrasts, not an interval per stratum. The cells loader,
+  tokenizer, BM25 parameters and RR@10 rule are taken from
+  `paper20_dense_vs_bm25_ci.py`; `cr1_se` is its estimator with the cluster
+  boundaries factored out so the per-stratum variant can reuse them, checked
+  against the original on 300 random datasets for exact agreement. Needs no
+  embeddings, so it runs on `two_site_v2_cells.json` alone; it does repeat the
+  BM25 scoring, which takes about 100 s for the composite index and 160 s for
+  the OASIS one. `--selftest` runs 15 checks on the estimators and the RR rule
+  without data. The composite run reproduces the Table 1 BM25 row and the OASIS
+  run the Table 3 BM25 row, which is the check that it agrees with the
+  manuscript.
+
+### Changed
+
+- `code/figures/make_figure3.py` — Figure 3 now has nine panels rather than
+  eight: the eight contrastively trained retrievers and BM25. The grid is 3 by
+  3 instead of 2 by 4. BM25 retrieves from a baseline about three times the
+  dense one, so a shared y-axis would flatten all eight dense panels; its panel
+  therefore carries its own range and is annotated "expanded y-axis" on its
+  face, with the caption saying so as well.
+- `figures/Figure3.png` — redrawn with the ninth panel. Pixel-identical to the
+  copy embedded in the manuscript.
+- `README.md`, `code/README.md`, `code/figures/README.md`, `figures/README.md`
+  and `docs/REPRODUCE.md` — the panel count, the second source of Figure 3's
+  values, and the commands that produce them. `docs/REPRODUCE.md` gains the two
+  commands and states the two output rows they must print.
+
 ## 1.2.0 — 2026-10-13
 
 Release accompanying the first revision of the manuscript for JMIR AI
@@ -97,9 +139,6 @@ retrained.
 
 ### Changed
 
-- `README.md` carries the Zenodo concept-DOI badge and a note under
-  Citing distinguishing the concept DOI, which tracks the latest release, from
-  the version DOI of release 1.2.0, which is what the manuscript cites.
 - `README.md` summarises the OASIS replication and the other analyses added at
   revision.
 - `code/README.md` lists the new scripts.

@@ -1,12 +1,22 @@
 # -*- coding: utf-8 -*-
 """Paper 20 -- manuscript Figure 3.
 
-Per-stratum mean RR@10 with 95% CIs, both exposures, eight panels. Writes
-Figure3.png at 300 dpi into --out-dir, RGB with transparency flattened.
+Per-stratum mean RR@10 with 95% CIs, both exposures, nine panels: the eight
+contrastively trained retrievers and BM25. Writes Figure3.png at 300 dpi into
+--out-dir, RGB with transparency flattened.
 
-Values are the per-quartile means and patient-clustered CR1 intervals printed by
-paper20_b3h3_linearity.py for the composite (paper18x_results/length_matched)
-and for OASIS (paper18x_results_oasis/length_matched).
+Reviewer B major comment 3 asked for per-quartile means with CIs "for each
+model" and quoted the BM25 series alongside the dense means, so BM25 is drawn
+as a ninth panel. Its baseline is about three times the dense baseline, so that
+panel carries its own y-axis and says so on its face.
+
+Dense values are the per-quartile means and patient-clustered CR1 intervals
+printed by paper20_b3h3_linearity.py for the composite
+(paper18x_results/length_matched) and for OASIS
+(paper18x_results_oasis/length_matched). The BM25 means are the Table 1 and
+Table 3 BM25 rows; its intervals come from
+../stage3_analysis/paper20_b3d_bm25_perquartile_ci.py, which applies the same
+CR1 estimator to the BM25 RR@10 series.
 """
 import argparse
 from pathlib import Path
@@ -22,7 +32,8 @@ OUT = _ap.parse_args().out_dir
 OUT.mkdir(parents=True, exist_ok=True)
 DPI = 300
 
-MODELS = ["BGE", "GTE", "E5", "Nomic", "MPNet", "MiniLM", "MedCPT", "BioLORD"]
+MODELS = ["BGE", "GTE", "E5", "Nomic", "MPNet", "MiniLM", "MedCPT", "BioLORD",
+          "BM25"]
 
 # model -> [(mean, lo, hi) x 4]
 COMP = {
@@ -34,6 +45,7 @@ COMP = {
  "MiniLM": [(.1280,.1072,.1489), (.0920,.0742,.1099), (.0861,.0688,.1035), (.0719,.0563,.0875)],
  "MedCPT": [(.0902,.0726,.1079), (.0473,.0348,.0599), (.0546,.0411,.0680), (.0544,.0410,.0678)],
  "BioLORD":[(.0961,.0781,.1141), (.0718,.0553,.0883), (.0695,.0537,.0853), (.0567,.0420,.0714)],
+ "BM25":   [(.3908,.3585,.4231), (.3480,.3168,.3792), (.3449,.3133,.3764), (.3384,.3066,.3701)],
 }
 OASIS = {
  "BGE":    [(.1457,.1252,.1662), (.1003,.0830,.1177), (.0749,.0599,.0899), (.0872,.0709,.1035)],
@@ -44,9 +56,13 @@ OASIS = {
  "MiniLM": [(.1310,.1113,.1507), (.1043,.0869,.1217), (.0784,.0624,.0945), (.0661,.0519,.0802)],
  "MedCPT": [(.0879,.0720,.1037), (.0540,.0421,.0659), (.0509,.0389,.0629), (.0502,.0377,.0627)],
  "BioLORD":[(.0904,.0739,.1069), (.0815,.0660,.0971), (.0630,.0490,.0770), (.0536,.0400,.0671)],
+ "BM25":   [(.4052,.3744,.4359), (.3668,.3375,.3962), (.3402,.3110,.3693), (.3159,.2872,.3446)],
 }
 # Holm-adjusted 2-df departure-from-linearity tests that rejected
 NOTE = {"MedCPT": "P lin = .02 (composite)", "BGE": "P lin = .02 (OASIS)"}
+# BM25 sits on a roughly threefold higher baseline, so it needs its own scale.
+WIDE = {"BM25": (0.0, 0.47, [0, 0.1, 0.2, 0.3, 0.4])}
+DENSE_LIM = (0.0, 0.215, [0, 0.05, 0.10, 0.15, 0.20])
 
 plt.rcParams.update({
     "font.family": "DejaVu Sans", "font.size": 11,
@@ -55,7 +71,7 @@ plt.rcParams.update({
 })
 
 def draw():
-    fig, axes = plt.subplots(2, 4, figsize=(10.0, 5.2), sharex=True)
+    fig, axes = plt.subplots(3, 3, figsize=(7.9, 7.7), sharex=True)
     x = [1, 2, 3, 4]
     for ax, m in zip(axes.ravel(), MODELS):
         for src, mk, ls, fc, lab in ((COMP[m], "o", "-", "black", "Composite"),
@@ -70,18 +86,25 @@ def draw():
         ax.set_title(m, fontsize=11, pad=4)
         ax.set_xticks(x)
         ax.set_xlim(0.6, 4.4)
-        ax.set_ylim(0, 0.215)
-        ax.set_yticks([0, 0.05, 0.10, 0.15, 0.20])
+        ylo, yhi, yt = WIDE.get(m, DENSE_LIM)
+        ax.set_ylim(ylo, yhi)
+        ax.set_yticks(yt)
         ax.tick_params(labelsize=9.5, length=3)
+        if m in WIDE:
+            ax.text(0.97, 0.93, "expanded y-axis", transform=ax.transAxes,
+                    ha="right", va="top", fontsize=8, style="italic")
         if m in NOTE:
             ax.text(0.97, 0.93, NOTE[m], transform=ax.transAxes, ha="right",
                     va="top", fontsize=8, style="italic")
     for ax in axes[:, 0]:
         ax.set_ylabel("Mean RR@10 (95% CI)", fontsize=10)
-    for ax in axes[1, :]:
+    for ax in axes[2, :]:
         ax.set_xlabel("Stratum", fontsize=10)
-    for ax in axes[0, :]:
-        ax.set_xlabel("")
+    for r in (0, 1):
+        for ax in axes[r, :]:
+            ax.set_xlabel("")
+    # BM25 keeps a y-axis label: same units as the dense panels, different range.
+    axes[2, 2].set_ylabel("Mean RR@10 (95% CI)", fontsize=10)
     axes[0, 0].legend(frameon=False, fontsize=8.5, loc="lower left",
                       handlelength=2.2, borderaxespad=0.2)
     fig.tight_layout(pad=0.7)

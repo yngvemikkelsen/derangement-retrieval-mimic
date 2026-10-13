@@ -150,10 +150,10 @@ See [`CITATION.cff`](CITATION.cff). Please cite the manuscript rather than this
 repository where the work is being discussed rather than the code reused.
 
 Two Zenodo identifiers exist and they are not interchangeable. The badge above
-is the concept DOI, [10.5281/zenodo.22878389](https://doi.org/10.5281/zenodo.22878389),
-which always resolves to the most recent release. To reproduce the results in
-the manuscript, use the version DOI of release 1.2.0,
-[10.5281/zenodo.23327731](https://doi.org/10.5281/zenodo.23327731), which is the
-identifier the manuscript's Data Availability statement cites, because a
-concept DOI would retarget to a later release and stop identifying the code
-that produced the reported numbers.
+is the concept DOI,
+[10.5281/zenodo.22878389](https://doi.org/10.5281/zenodo.22878389), which always
+resolves to the most recent release. To reproduce the results in the
+manuscript, use the version DOI of release 1.3.0, which is the identifier the
+manuscript's Data Availability statement cites, because a concept DOI would
+retarget to a later release and stop identifying the code that produced the
+reported numbers.

@@ -252,8 +252,24 @@ python paper20_g2_bm25_representation.py --results $WORK/cells_oasis/length_matc
   --label OASIS
 ```
 
+BM25's per-stratum means with patient-clustered intervals, for the ninth panel
+of Figure 3. This repeats the BM25 scoring and is the slow step of this
+section: about 100 s for the composite index and 160 s for the OASIS one.
+
+```bash
+python paper20_b3d_bm25_perquartile_ci.py --results $WORK/cells/length_matched \
+  --label composite
+python paper20_b3d_bm25_perquartile_ci.py --results $WORK/cells_oasis/length_matched \
+  --label OASIS
+```
+
+The composite run must print the Table 1 BM25 row, 0.3908 0.3480 0.3449 0.3384
+with slope -0.01604 (-0.03039, -0.00168), and the OASIS run the Table 3 BM25
+row, 0.4052 0.3668 0.3402 0.3159 with slope -0.02945 (-0.04273, -0.01617).
+
 Figure 3 of the revision is drawn by `../figures/make_figure3.py` from the
-per-quartile values printed by `paper20_b3h3_linearity.py`.
+per-quartile values printed by `paper20_b3h3_linearity.py` for its eight dense
+panels and by `paper20_b3d_bm25_perquartile_ci.py` for its BM25 panel.
 
 ### 3.6 Alternative explanations
 
